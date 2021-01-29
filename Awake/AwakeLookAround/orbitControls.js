@@ -20,19 +20,16 @@ function init3D() {
 
 
 
-
-    //var cylinder = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
-    var cylinder = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
-    //  var geometry = new THREE.CylinderGeometry(500, 60, 40);
-    geometry.scale(-1, 1, 1);
-
-    var texture = new THREE.TextureLoader().load('office.jpeg');
-  //  texture.needsUpdate = true;
-    var pano = new THREE.MeshBasicMaterial({ map: texture});
-
-    var back = new THREE.Mesh(cylinder, pano);
-    console.log(back);
-    scene.add(back);
+      let bgGeometery = new THREE.SphereGeometry(1000, 60, 40);
+      //let  bgGeometery  = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
+      bgGeometery.scale(-1, 1, 1);
+      // has to be power of 2 like (4096 x 2048) or(8192x4096).  i think it goes upside down because texture is not right size
+      let panotexture = new THREE.TextureLoader().load("itp.jpg");
+     // var material = new THREE.MeshBasicMaterial({ map: panotexture, transparent: true,   alphaTest: 0.02,opacity: 0.3});
+      let backMaterial = new THREE.MeshBasicMaterial({ map: panotexture});
+  
+      let back = new THREE.Mesh( bgGeometery , backMaterial);
+      scene.add(back);
 
 
     const controls = new OrbitControls( camera3D, renderer.domElement );
