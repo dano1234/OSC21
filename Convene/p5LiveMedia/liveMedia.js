@@ -2,15 +2,44 @@
 let camera3D, scene, renderer, cube;
 let dir = 0.01;
 let myCanvas, myVideo, p5CanvasTexture;
+let connections = [];
+let textures = []
 
 function setup(){
   myCanvas = createCanvas(512,512);
   myCanvas.hide();
-  myVideo = createCapture(VIDEO);
+  myVideo = createCapture(VIDEO,videoLoaded);
   myVideo.size(320,240);
   myVideo.hide();
 
   init3D();
+}
+function videoLoaded(stream){
+    let p5lm = new p5LiveMedia(this, "CAPTURE", stream, "jZQ64AMJc")
+    p5lm.on('stream', gotStream);
+}
+
+function gotStream(stream, id) {
+    creatNewVideoObject(stream);
+}
+
+function creatNewVideoObject(canvas){
+    var videoGeometry = new THREE.PlaneGeometry(1024, 1024);
+    let p5CanvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
+  //let videoMaterial = new THREE.MeshBasicMaterial({ map:   p5CanvasTexture});
+   let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
+ //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+   myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
+
+    scene.add(myAvatarObj);
+    connections.push(myAvatarObj);
+    textures.push(p5CanvasTexture);
+    console.log(myAvatarObj.material.map);
+    let angle = connections.length * Math.PI/5;
+    let x = 500 * Math.cos(angle);
+    myAvatarObj.position.set(x,0,-500);
+    myAvatarObj.lookAt(0,0,0);
+
 }
 
 function draw(){
@@ -31,15 +60,8 @@ function init3D() {
   //  cube = new THREE.Mesh(geometry, material);
  //   scene.add(cube);
 
-    var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    p5CanvasTexture = new THREE.Texture(myCanvas.elt);  //NOTICE THE .elt  this give the element
- //  let videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture});
-   let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
- //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-   myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
-    myAvatarObj.position.set(0,0,-500);
-    scene.add(myAvatarObj);
 
+ creatNewVideoObject(myCanvas);
 
 
     let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
@@ -62,7 +84,10 @@ function init3D() {
 function animate() {
  
     requestAnimationFrame(animate);
-    p5CanvasTexture.needsUpdate = true;
+    for (var i = 0; i < textures.length; i++){
+        textures[i].needsUpdate = true;
+    }
+   // p5CanvasTexture.needsUpdate = true;
     //cube.scale.x += dir;
    // cube.scale.y += dir;
     //cube.scale.z += dir;
