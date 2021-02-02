@@ -11,11 +11,12 @@ function setup() {
     myVideo = createCapture(VIDEO, videoLoaded);
     myVideo.hide()
     myVideo.size(320, 240);
- 
+
     init3D();
 }
 
-function videoLoaded(stream) {;
+function videoLoaded(stream) {
+    ;
     let p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
     p5lm.on('stream', gotStream);
 }
@@ -28,7 +29,7 @@ function creatNewVideoObject(canvas) {  //this is for remote and local
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
     let p5CanvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
     //let videoMaterial = new THREE.MeshBasicMaterial({ map:   p5CanvasTexture});
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1,  side: THREE.DoubleSide });
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of errors
     //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
@@ -37,13 +38,13 @@ function creatNewVideoObject(canvas) {  //this is for remote and local
     connections.push(myAvatarObj);
     textures.push(p5CanvasTexture);
     console.log(myAvatarObj.material.map);
-    let horiz_angle = (connections.length +1) * 2*Math.PI / 5;
+    let horiz_angle = (connections.length + 1) * 2 * Math.PI / 5;
     let vert_anagle = 0;
     let distanceFromCenter = 850;
     x = distanceFromCenter * Math.sin(horiz_angle); //Math.sin(vert_anagle) * 
     y = 0; //distanceFromCenter  * Math.cos(vert_anagle);
-    z = distanceFromCenter  * Math.cos(horiz_angle); //Math.sin(vert_anagle) * 
-    myAvatarObj.position.set(x,y,z);
+    z = distanceFromCenter * Math.cos(horiz_angle); //Math.sin(vert_anagle) * 
+    myAvatarObj.position.set(x, y, z);
     myAvatarObj.lookAt(0, 0, 0);
 
 }

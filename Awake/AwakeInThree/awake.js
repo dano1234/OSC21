@@ -1,5 +1,5 @@
 let camera3D, scene, renderer;
-let cube,light,spotLight;
+let cube, light, spotLight;
 let controls;
 
 
@@ -15,8 +15,8 @@ function init3D() {
     light.position.set(0, 0, 0);
     scene.add(light);
 
-    spotLight = new THREE.SpotLight( 0xffff00 );
-    spotLight.position.set( 0, 0, 0);
+    spotLight = new THREE.SpotLight(0xffff00);
+    spotLight.position.set(0, 0, 0);
 
     spotLight.castShadow = true;
 
@@ -31,33 +31,32 @@ function init3D() {
 
 
     //let bgGeometery = new THREE.SphereGeometry(1000, 60, 40);
-    let  bgGeometery  = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
+    let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
     //  var geometry = new THREE.CylinderGeometry(500, 60, 40);
     bgGeometery.scale(-1, 1, 1);
     //  (8192x4096).  i think it goes upside down because texture is not right size
     let panotexture = new THREE.TextureLoader().load("office.jpeg");
-   // var material = new THREE.MeshBasicMaterial({ map: panotexture, transparent: true,   alphaTest: 0.02,opacity: 0.3});
-    let backMaterial = new THREE.MeshBasicMaterial({ map: panotexture});
+    // var material = new THREE.MeshBasicMaterial({ map: panotexture, transparent: true,   alphaTest: 0.02,opacity: 0.3});
+    let backMaterial = new THREE.MeshBasicMaterial({ map: panotexture });
 
-    let back = new THREE.Mesh( bgGeometery , backMaterial);
+    let back = new THREE.Mesh(bgGeometery, backMaterial);
     scene.add(back);
 
 
     camera3D.position.z = 5;
 
-    controls = new THREE.OrbitControls(camera3D, renderer.domElement);
+
     //controls.addEventListener('change', animate);
     animate();
 }
 
 function animate() {
     requestAnimationFrame(animate);  //call it self, almost recursive
-    
+
     spotLight.rotation.x += 0.01;
     spotLight.rotation.y += 0.01;
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
-    controls.update;
     renderer.render(scene, camera3D);
 }
 

@@ -19,6 +19,16 @@ function init3D() {
 
 
 
+    //let bgGeometery = new THREE.SphereGeometry(1000, 60, 40);
+    let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
+    bgGeometery.scale(-1, 1, 1);
+    // has to be power of 2 like (4096 x 2048) or(8192x4096).  i think it goes upside down because texture is not right size
+    let panotexture = new THREE.TextureLoader().load("itp.jpg");
+    // var material = new THREE.MeshBasicMaterial({ map: panotexture, transparent: true,   alphaTest: 0.02,opacity: 0.3});
+    let backMaterial = new THREE.MeshBasicMaterial({ map: panotexture });
+
+    let back = new THREE.Mesh(bgGeometery, backMaterial);
+    scene.add(back);
 
     moveCameraWithMouse();
 
@@ -31,9 +41,6 @@ function animate() {
     cube.scale.x += dir;
     cube.scale.y += dir;
     cube.scale.z += dir;
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
-  
     if (cube.scale.x > 4 || cube.scale.x < -4) {
         dir = -dir;
     }
