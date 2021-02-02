@@ -22,6 +22,7 @@ function videoLoaded(stream) {
 }
 
 function gotStream(stream, id) {
+    stream.hide();
     creatNewVideoObject(stream);
 }
 
