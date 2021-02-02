@@ -2,7 +2,7 @@ let camera3D, scene, renderer;
 let cube, light, spotLight;
 let dir = 0.01;
 
-
+init3D();
 function init3D() {
     scene = new THREE.Scene();
     camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -40,4 +40,3 @@ function animate() {
     renderer.render(scene, camera3D);
 }
 
-init3D();
