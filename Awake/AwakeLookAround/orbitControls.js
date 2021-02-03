@@ -3,6 +3,7 @@ import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources
 
 let camera3D, scene, renderer, cube;
 let dir = 0.01;
+let controls;
 
 
 function init3D() {
@@ -19,14 +20,15 @@ function init3D() {
     scene.add(cube);
 
 
-    const controls = new OrbitControls(camera3D, renderer.domElement);
+    controls = new OrbitControls(camera3D, renderer.domElement);
     camera3D.position.z = 5;
     animate();
 }
 
 function animate() {
     requestAnimationFrame(animate);
-    cube.scale.x += dir;
+    controls.update();
+   /* cube.scale.x += dir;
     cube.scale.y += dir;
     cube.scale.z += dir;
     cube.rotation.y += 0.01;
@@ -34,6 +36,7 @@ function animate() {
     if (cube.scale.x > 4 || cube.scale.x < -4) {
         dir = -dir;
     }
+    */
     renderer.render(scene, camera3D);
 }
 

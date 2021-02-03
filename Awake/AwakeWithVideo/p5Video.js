@@ -6,7 +6,20 @@ let myCanvas, myVideo, p5CanvasTexture;
 function setup() {
     myCanvas = createCanvas(512, 512);
     myCanvas.hide();
-    myVideo = createCapture(VIDEO);
+ 
+    let constraints = {
+        video: {
+            sourceId: "0a3b504a5d64c67a10f7173e0e07c74c34a40ae1108e2a004d08508810f31ea2",
+          mandatory: {
+            minWidth: 640,
+            minHeight: 480
+          },
+          optional: [{ maxFrameRate: 10 }]
+        },
+        audio: false
+      };
+
+    myVideo = createCapture(constraints,VIDEO);
     myVideo.size(320, 240);
     myVideo.hide();
 
@@ -26,16 +39,11 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // const geometry = new THREE.BoxGeometry();
-    //  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    //  cube = new THREE.Mesh(geometry, material);
-    //   scene.add(cube);
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
     p5CanvasTexture = new THREE.Texture(myCanvas.elt);  //NOTICE THE .elt  this give the element
     //  let videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture});
     let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
-    //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
     myAvatarObj.position.set(0, 0, -500);
     scene.add(myAvatarObj);
@@ -63,12 +71,7 @@ function animate() {
 
     requestAnimationFrame(animate);
     p5CanvasTexture.needsUpdate = true;
-    //cube.scale.x += dir;
-    // cube.scale.y += dir;
-    //cube.scale.z += dir;
-    // if (cube.scale.x > 4 || cube.scale.x < -4) {
-    //    dir = -dir;
-    // }
+
     renderer.render(scene, camera3D);
 }
 

@@ -18,8 +18,6 @@ function init3D() {
     scene.add(cube);
 
 
-
-
     moveCameraWithMouse();
 
     camera3D.position.z = 5;
@@ -28,7 +26,7 @@ function init3D() {
 
 function animate() {
     requestAnimationFrame(animate);
-    cube.scale.x += dir;
+  /*  cube.scale.x += dir;
     cube.scale.y += dir;
     cube.scale.z += dir;
     cube.rotation.x += 0.01;
@@ -36,7 +34,7 @@ function animate() {
   
     if (cube.scale.x > 4 || cube.scale.x < -4) {
         dir = -dir;
-    }
+    }*/
     renderer.render(scene, camera3D);
 }
 
