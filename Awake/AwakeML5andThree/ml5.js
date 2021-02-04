@@ -2,11 +2,14 @@
 let camera3D, scene, renderer, cube;
 let dir = 0.01;
 let myCanvas, myVideo, p5CanvasTexture, poseNet;
-let headAngle, nose;
+let headAngle, nose, circleMask, angleOnCircle;
+
 
 function setup() {
     myCanvas = createCanvas(512, 512);
+    circleMask = createGraphics(512, 512);
     myCanvas.hide();
+    /*
     let constraints = {
         video: {
             sourceId: "0a3b504a5d64c67a10f7173e0e07c74c34a40ae1108e2a004d08508810f31ea2",
@@ -20,8 +23,9 @@ function setup() {
       };
 
     myVideo = createCapture(constraints,VIDEO);
-   // myVideo = createCapture(VIDEO);
-    myVideo.size(320, 240);
+    */
+    myVideo = createCapture(VIDEO);
+    myVideo.size(512, 512);
     myVideo.hide();
     nose= {"x":myVideo.width/2, "y":myVideo.height/2};
     poseNet = ml5.poseNet(myVideo, modelReady);
@@ -47,38 +51,27 @@ function gotPoses(results) {
     if (thisNose.confidence > .8) {
         nose.x = thisNose.x;
         nose.y = thisNose.y;
+
+        let xDiff = poses[0].pose.leftEye.x - poses[0].pose.rightEye.x;
+        let yDiff = poses[0].pose.leftEye.y - poses[0].pose.rightEye.y;
+        headAngle = Math.atan2(yDiff, xDiff);
     }
-    let xDiff = poses[0].pose.leftEye.x - poses[0].pose.rightEye.x;
-    let yDiff = poses[0].pose.leftEye.y - poses[0].pose.rightEye.y;
-    //console.log(yDiff/xDiff);
-    headAngle = Math.atan2(yDiff, xDiff);
-    //console.log(headAngle);
+    
 }
 
-function findExtremes(results) {
-    keypoints = results[0].pose.keypoints;
-    let left = videoWidth;
-    let right = 0;
-    let top = videoHeight;
-    let bottom = 0;
-    for (var i = 0; i < keypoints.length; i++) {
-        if (keypoints[i].score > .8) {
-            if (keypoints[i].position.x < left) left = keypoints[i].position.x;
-            if (keypoints[i].position.x > right) right = keypoints[i].position.x;
-            if (keypoints[i].position.y < top) top = keypoints[i].position.y;
-            if (keypoints[i].position.y > bottom) bottom = keypoints[i].position.y;
-        }
-    }
-    extremes = { "left": left, "top": top, "right": right, "bottom": bottom };
-    return extremes;
-}
 
 
 
 function draw() {
-    clear();
+    clear(); //clear the mask
+    circleMask.ellipseMode(CENTER); 
+    circleMask.clear()//clear the mask
+    circleMask.fill(0,0,0,255);//set alpha of mask
+    circleMask.noStroke();
+    circleMask.ellipse(nose.x, nose.y ,150, 150)//use nose pos to draw alpha
+    myVideo.mask(circleMask);//use alpha of mask to clip the vido
     image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-}
+ }
 
 function init3D() {
     scene = new THREE.Scene();
@@ -100,6 +93,8 @@ function init3D() {
     //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
     myAvatarObj.position.set(0, 0, -500);
+    angleOnCircle = Math.PI;
+    positionOnCircle(angleOnCircle,myAvatarObj);
     scene.add(myAvatarObj);
 
 
@@ -117,8 +112,17 @@ function init3D() {
 
     moveCameraWithMouse();
 
-    camera3D.position.z = 5;
+    camera3D.position.z = 0;
     animate();
+}
+
+function positionOnCircle(angle,mesh){
+    //imagine a circle looking down on the world and do High School math
+    let distanceFromCenter = 850;
+    x = distanceFromCenter * Math.sin(angle); 
+    z = distanceFromCenter * Math.cos(angle); 
+    mesh.position.set(x, 0, z);
+    mesh.lookAt(0, 0, 0);
 }
 
 function animate() {

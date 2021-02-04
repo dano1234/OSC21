@@ -63,7 +63,7 @@ function init3D() {
 
     moveCameraWithMouse();
 
-    camera3D.position.z = 5;
+    camera3D.position.z = 0;
     animate();
 }
 
