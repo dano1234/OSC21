@@ -9,6 +9,7 @@ function setup() {
     myCanvas.hide();
     let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     myVideo = createCapture(captureConstraints);
+    myVideo.elt.muted = true;
     //below is simpler if you don't need to select Camera because default is okay
     //myVideo = createCapture(VIDEO);
     //myVideo.size(myCanvas.width, myCanvas.height);
@@ -31,7 +32,7 @@ function gotAudioStream() {
 
 function gotStream(stream, id) {
     console.log(stream);
-    document.body.appendChild(stream.elt);
+    //document.body.appendChild(stream.elt);
     //stream.elt.autoplay = true;
     /* stream.elt.onloadedmetadata = function (e) {
          console.log(e);
@@ -46,18 +47,6 @@ function gotStream(stream, id) {
       //stream.hide();
 }
 
-function gotDisconnect(id) {
-    for (var i = 0; i < people.length; i++) {
-        if (people[i].id == id) {
-            people[i].canvas.remove(); //dom version
-            scene.remove(people[i].object); //three.js version
-            people.splice(i, 1);  //remove from our variable
-            break;
-        }
-    }
-    positionEveryoneOnACircle();    //re space everyone
-}
-
 function creatNewVideoObject(canvas, id) {  //this is for remote and local
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
@@ -70,6 +59,18 @@ function creatNewVideoObject(canvas, id) {  //this is for remote and local
 
     people.push({ "object": myAvatarObj, "texture": canvasTexture, "id": id, "canvas": canvas });
     positionEveryoneOnACircle();
+}
+
+function gotDisconnect(id) {
+    for (var i = 0; i < people.length; i++) {
+        if (people[i].id == id) {
+            people[i].canvas.remove(); //dom version
+            scene.remove(people[i].object); //three.js version
+            people.splice(i, 1);  //remove from our variable
+            break;
+        }
+    }
+    positionEveryoneOnACircle();    //re space everyone
 }
 
 function positionEveryoneOnACircle() {

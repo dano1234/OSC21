@@ -8,6 +8,7 @@ function setup() {
     myCanvas.hide();
     let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
     myVideo = createCapture(captureConstraints, videoLoaded);
+    myVideo.elt.muted = true;
     //below is simpler if you don't need to select Camera because default is okay
     //myVideo = createCapture(VIDEO, videoLoaded);
     //myVideo.size(myCanvas.width, myCanvas.height);
