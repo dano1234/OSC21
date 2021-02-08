@@ -1,100 +1,83 @@
 
-let camera3D, scene, renderer, cube;
-let dir = 0.01;
-let myCanvas, myVideo, p5CanvasTexture, poseNet;
-let nose, circleMask, angleOnCircle, myAvatarObj;
-
-let videoOptions, preferredCam;
-
+let camera3D, scene, renderer
+let myCanvas, myVideo;
+let people = [];
 
 function setup() {
     myCanvas = createCanvas(512, 512);
-    circleMask = createGraphics(512, 512);
     myCanvas.hide();
-    createPullDownForCameraSelection();
-    videoOptions = {
-        audio: false, video: {
-            width: myCanvas.width,
-            height: myCanvas.height,
-            sourceId: preferredCam
-        }
-    }
-    myVideo = createCapture(videoOptions);
-    myVideo.hide();
-
-
-    nose = { "x": myVideo.width / 2, "y": myVideo.height / 2 };
-    poseNet = ml5.poseNet(myVideo, modelReady);
-    poseNet.on("pose", gotPoses);
+    let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
+    myVideo = createCapture(captureConstraints, videoLoaded);
+    myVideo.elt.muted = true;
+    //below is simpler if you don't need to select Camera because default is okay
+    //myVideo = createCapture(VIDEO, videoLoaded);
+    //myVideo.size(myCanvas.width, myCanvas.height);
+    myVideo.hide()
 
     init3D();
 }
 
-function modelReady() {
-    console.log("model ready");
-    progress = "loaded";
-    poseNet.singlePose(myVideo);
+function videoLoaded(stream) {
+    let p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
+    p5lm.on('stream', gotStream);
+    p5lm.on('disconnect', gotDisconnect);
 }
 
-// A function that gets called every time there's an update from the model
-function gotPoses(results) {
-    //console.log(results);
-    if (!results[0]) return;
-    poses = results;
-    progress = "predicting";
-    let thisNose = results[0].pose.nose;
-    let thisWrist = results[0].pose.rightWrist;
+function gotStream(stream, id) {
+    //this gets called when there is someone else in the room, new or existing
+    stream.hide();  //don't want the dom object, will use in p5 and three.js instead
+    //get a network id from each person who joins
+    creatNewVideoObject(stream,id);
+}
 
-    let handRaised = false;
-    if (thisWrist.confidence > .3 && thisWrist.y < height / 2) {
-        handRaised = true;
-    }
-    // console.log(handRaised);
-    if (thisNose.confidence > .8) {
-        nose.x = thisNose.x;
-        nose.y = thisNose.y;
-
-        let xDiff = poses[0].pose.leftEye.x - poses[0].pose.rightEye.x;
-        let yDiff = poses[0].pose.leftEye.y - poses[0].pose.rightEye.y;
-        headAngle = Math.atan2(yDiff, xDiff);
-        headAngle = THREE.Math.radToDeg(headAngle);
-
-        if (headAngle > 15) {
-            if (handRaised) {
-                //move the camera
-                lon -= .5;
-                computeCameraOrientation();
-            } else {
-                //move p5sketch
-                angleOnCircle -= 0.005;
-                positionOnCircle(angleOnCircle, myAvatarObj);
-            }
+function gotDisconnect(id) {
+    for(var i = 0; i < people.length; i++){
+        if (people[i].id == id){
+            people[i].p5Canvas.remove(); //dom version
+           scene.remove(people[i].object); //three.js version
+            people.splice(i,1);  //remove from our variable
+            break;
         }
-        if (headAngle < -15) {
-            if (handRaised) {
-                //move the camera
-                lon += .5;
-                computeCameraOrientation();
-            } else {
-                //move p5sketch
-                angleOnCircle += 0.005;
-                positionOnCircle(angleOnCircle, myAvatarObj);
-            }
-        }
-
-
     }
+    positionEveryoneOnACircle();    //re space everyone
+}
 
+function creatNewVideoObject(canvas,id) {  //this is for remote and local
+    var videoGeometry = new THREE.PlaneGeometry(512, 512);
+    let p5CanvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
+    videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
+    myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
+
+    scene.add(myAvatarObj);
+
+    people.push({"object":myAvatarObj, "texture":p5CanvasTexture, "id": id, "p5Canvas":canvas });
+    positionEveryoneOnACircle();
+}
+
+function positionEveryoneOnACircle() {
+ //position it on a circle around the middle
+  let radiansPerPerson = Math.PI/people.length;  //spread people out over 180 degrees?
+  for(var i = 0; i < people.length; i++){
+    let angle =  i * radiansPerPerson;
+    let thisAvatar = people[i].object;
+    let distanceFromCenter = 800;
+    //imagine a circle looking down on the world and do High School math
+    angle = angle + Math.PI; //for some reason the camera starts point at 180 degrees
+    x = distanceFromCenter * Math.sin(angle);
+    z = distanceFromCenter * Math.cos(angle);
+    thisAvatar .position.set(x, 0, z);  //zero up and down
+    thisAvatar .lookAt(0, 0, 0);  //oriented towards the camera in the center
+  }
 }
 
 function draw() {
-    clear(); //clear the mask
-    circleMask.ellipseMode(CENTER);
-    circleMask.clear()//clear the mask
-    circleMask.fill(0, 0, 0, 255);//set alpha of mask
-    circleMask.noStroke();
-    circleMask.ellipse(nose.x, nose.y, 150, 150)//use nose pos to draw alpha
-    myVideo.mask(circleMask);//use alpha of mask to clip the vido
+    //go through all the people an update their texture, animate would be another place for this
+    for (var i = 0; i < people.length; i++){  
+        people[i].texture.needsUpdate = true;
+    }
+    //look after the canvas I am sending out to the group
+    clear();//for making background transparent
     image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
 }
 
@@ -106,24 +89,13 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-
-    var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    p5CanvasTexture = new THREE.Texture(myCanvas.elt);  //NOTICE THE .elt  this give the element
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
-    myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
-
-    angleOnCircle = Math.PI;
-    positionOnCircle(angleOnCircle, myAvatarObj);
-    scene.add(myAvatarObj);
-
-
+    creatNewVideoObject(myCanvas,"me");
 
     let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
     //let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
     bgGeometery.scale(-1, 1, 1);
     // has to be power of 2 like (4096 x 2048) or(8192x4096).  i think it goes upside down because texture is not right size
     let panotexture = new THREE.TextureLoader().load("itp.jpg");
-    // var material = new THREE.MeshBasicMaterial({ map: panotexture, transparent: true,   alphaTest: 0.02,opacity: 0.3});
     let backMaterial = new THREE.MeshBasicMaterial({ map: panotexture });
 
     let back = new THREE.Mesh(bgGeometery, backMaterial);
@@ -135,26 +107,16 @@ function init3D() {
     animate();
 }
 
-function positionOnCircle(angle, mesh) {
-    //imagine a circle looking down on the world and do High School math
-    let distanceFromCenter = 850;
-    x = distanceFromCenter * Math.sin(angle);
-    z = distanceFromCenter * Math.cos(angle);
-    mesh.position.set(x, 0, z);
-    mesh.lookAt(0, 0, 0);
-}
-
 function animate() {
     requestAnimationFrame(animate);
-    p5CanvasTexture.needsUpdate = true;  //tell renderer that P5 canvas is changing
     renderer.render(scene, camera3D);
 }
 
-/////MOUSE STUFF
+/////MOUSE STUFF  ///YOU MIGHT NOT HAVE TO LOOK DOWN BELOW HERE VERY MUCH
 
 var onMouseDownMouseX = 0, onMouseDownMouseY = 0;
 var onPointerDownPointerX = 0, onPointerDownPointerY = 0;
-var lon = -90, onMouseDownLon = 0;
+var lon = -90, onMouseDownLon = 0; //start at -90 degrees for some reason
 var lat = 0, onMouseDownLat = 0;
 var isUserInteracting = false;
 
@@ -218,27 +180,33 @@ function onWindowResize() {
     console.log('Resized');
 }
 
-function createPullDownForCameraSelection() {
+function allowCameraSelection(w,h) {
+    //This whole thing is to build a pulldown menu for selecting between cameras
+
     //manual alternative to all of this pull down stuff:
     //type this in the console and unfold resulst to find the device id of your preferredwebcam, put in sourced id below
     //navigator.mediaDevices.enumerateDevices()
-    preferredCam = localStorage.getItem('preferredCam')
+    
+    //default settings
+    let  videoOptions = {
+        audio: true, video: {
+            width: w,
+            height: h
+        }
+    };
+
+    let preferredCam = localStorage.getItem('preferredCam')
+    //if you changed it in the past and stored setting
     if (preferredCam) {
         videoOptions = {
             video: {
-                width: myCanvas.width,
-                height: myCanvas.height,
+                width: w,
+                height: h,
                 sourceId: preferredCam
             }
         };
-    } else {
-        videoOptions = {
-            audio: true, video: {
-                width: myCanvas.width,
-                height: myCanvas.height
-            }
-        };
-    }
+    } 
+    //create a pulldown menu for picking source
     navigator.mediaDevices.enumerateDevices().then(function (d) {
         var sel = createSelect();
         sel.position(10, 10);
@@ -254,7 +222,7 @@ function createPullDownForCameraSelection() {
         }
         sel.changed(function () {
             let item = sel.value();
-            console.log(item);
+            //console.log(item);
             localStorage.setItem('preferredCam', item);
             videoOptions = {
                 video: {
@@ -266,7 +234,8 @@ function createPullDownForCameraSelection() {
             myVideo.remove();
             myVideo = createCapture(videoOptions, VIDEO);
             myVideo.hide();
-            console.log(videoOptions);
+            console.log("Preferred Camera", videoOptions);
         });
     });
+    return videoOptions;
 }
