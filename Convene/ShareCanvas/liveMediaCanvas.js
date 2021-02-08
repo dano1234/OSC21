@@ -6,14 +6,15 @@ let myRoomName = "mycrazyCanvasRoomName";   //make a different room from classma
 
 function setup() {
     myCanvas = createCanvas(512, 512);
-    myCanvas.hide();
+  //  document.body.append(myCanvas.elt);
+ myCanvas.hide();
     let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     myVideo = createCapture(captureConstraints);
     myVideo.elt.muted = true;
     //below is simpler if you don't need to select Camera because default is okay
     //myVideo = createCapture(VIDEO);
     //myVideo.size(myCanvas.width, myCanvas.height);
-    myVideo.hide()
+  myVideo.hide()
 
     let p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
@@ -25,26 +26,15 @@ function setup() {
     init3D();
 }
 
-
-function gotAudioStream() {
-
-}
-
 function gotStream(stream, id) {
     console.log(stream);
-    //document.body.appendChild(stream.elt);
-    //stream.elt.autoplay = true;
-    /* stream.elt.onloadedmetadata = function (e) {
-         console.log(e);
-         e.target.play();
-         stream.elt.play();
-      };
-      */
+    
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
-    creatNewVideoObject(stream, id);
-      //stream.hide();
+    
+      stream.hide();
+      creatNewVideoObject(stream, id);
 }
 
 function creatNewVideoObject(canvas, id) {  //this is for remote and local
@@ -97,7 +87,6 @@ function draw() {
         } else if (people[i].canvas.elt.readyState == people[i].canvas.elt.HAVE_ENOUGH_DATA) {
             //console.log(people[i].canvas.elt.readyState, people[i].canvas.elt.HAVE_ENOUGH_DATA);
             people[i].texture.needsUpdate = true;
-
         }
 
     }
@@ -157,6 +146,10 @@ function addAudioStream() {
 
     myAudio.elt.muted = true;
     myAudio.hide();
+}
+
+function gotAudioStream() {
+
 }
 /////MOUSE STUFF  ///YOU MIGHT NOT HAVE TO LOOK DOWN BELOW HERE VERY MUCH
 
