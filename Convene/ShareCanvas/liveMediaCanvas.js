@@ -3,6 +3,8 @@ let camera3D, scene, renderer
 let myCanvas, myVideo, myMask;
 let people = [];
 let myRoomName = "mycrazyCanvasRoomName";   //make a different room from classmates
+let  p5lm ;
+
 
 let myName = prompt("name?");
 function setup() {
@@ -20,7 +22,7 @@ function setup() {
     //myVideo.size(myCanvas.width, myCanvas.height);
     myVideo.hide()
 
-    let p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
+    p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
     p5lm.on('disconnect', gotDisconnect);
 
@@ -45,7 +47,9 @@ function creatNewVideoObject(canvas, id) {  //this is for remote and local
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
     let canvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
+    //opacity: 1
+    
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
@@ -92,7 +96,6 @@ function draw() {
         } else if (people[i].canvas.elt.readyState == people[i].canvas.elt.HAVE_ENOUGH_DATA) {
             people[i].texture.needsUpdate = true;
         }
-
     }
     //now daw me on  the canvas I am sending out to the group
     //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation

@@ -2,26 +2,19 @@
 let camera3D, scene, renderer
 let myCanvas, myVideo, myMask;
 let people = [];
-let myRoomName = "mycrazyCanvasBodyPixRoomName";   //make a different room from classmates
-let bodypix;
-const bodypixOptions = {
-    outputStride: 32, // 8, 16, or 32, default is 16
-    segmentationThreshold: 0.3, // 0 - 1, defaults to 0.5 
-}
+let myRoomName = "mycrazyFaceCanvasRoomName";   //make a different room from classmates
+let faceMesh;
+let angleOnCircle;
 let p5lm;
 
-let myName; // = prompt("name?");
-
-function preload() {
-    bodypix = ml5.bodyPix(bodypixOptions);
-}
+let myName; //= prompt("name?");
 function setup() {
-    myCanvas = createCanvas(512, 512, videoReady);
+    myCanvas = createCanvas(512, 512);
     //  document.body.append(myCanvas.elt);
     myCanvas.hide();
 
     myMask = createGraphics(width, height); //this is for the setting the alpha layer for me.
-
+    //myMask.rect(0, 0, width,height);
     let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     myVideo = createCapture(captureConstraints);
     myVideo.elt.muted = true;
@@ -33,33 +26,77 @@ function setup() {
     p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
     p5lm.on('disconnect', gotDisconnect);
+    p5lm.on('data', gotData);
+
 
     //ALSO ADD AUDIO STREAM
     //addAudioStream() ;
+
+    facemesh = ml5.facemesh(myVideo, function () {
+        progress = "loaded";
+        console.log('face mesh model ready!')
+    });
+
+    facemesh.on("predict", gotFaceResults);
 
 
     init3D();
 }
 
-function videoReady() {  //this gets called when create capture finishe
-    bodypix.segmentWithParts(myVideo, gotResults, bodypixOptions);  //kick start it
-}
+function gotData(data, id) {
+    // If it is JSON, parse it
 
-function gotResults(err, result) {
-    if (err) {
-        console.log(err);
-        return;
+    let d = JSON.parse(data);
+    for (var i = 0; i < people.length; i++) {
+        if (people[i].id == id) {
+            positionOnCircle(d.angleOnCircle, people[i].object);
+            break;
+        }
     }
-    segmentation = result;
-    console.log(sementation);
-    background(255, 0, 0);
-    // image(video, 0, 0, width, height)
-    image(segmentation.partMask, 0, 0, width, height);
 
-    bodypix.segmentWithParts(video, gotResults, bodypixOptions);
 }
 
-function gotStream(videoObject, id) {
+function gotFaceResults(results) {
+    if (results && results.length > 0) {
+        progress = "predicting";
+        //  console.log(results[0]);
+        //DRAW THE ALPHA MASK FROM THE OUTLINE OF MASK
+
+        outline = results[0].annotations.silhouette;
+        myMask.clear();
+        myMask.noStroke();
+        myMask.fill(0, 0, 0, 255);//some nice alphaa in fourth number
+        myMask.beginShape();
+        for (var i = 0; i < outline.length - 1; i++) {
+            myMask.curveVertex(outline[i][0], outline[i][1]);
+
+        }
+        myMask.endShape(CLOSE);
+        //Get the angle between eyes
+        let xDiff = results[0].annotations.leftEyeLower0[0][0] - results[0].annotations.rightEyeLower0[0][0];
+        let yDiff = results[0].annotations.leftEyeLower0[0][1] - results[0].annotations.rightEyeLower0[0][1]
+        headAngle = Math.atan2(yDiff, xDiff);
+        headAngle = THREE.Math.radToDeg(headAngle);
+        //console.log(headAngle);
+        if (headAngle > 12) {
+            angleOnCircle -= 0.05;
+            positionOnCircle(angleOnCircle, myAvatarObj);
+            let dataToSend = { "angleOnCircle": angleOnCircle };
+            // Send it
+            p5lm.send(JSON.stringify(dataToSend));
+        }
+        if (headAngle < -12) {
+            angleOnCircle += 0.05;
+            positionOnCircle(angleOnCircle, myAvatarObj);
+            // Package as JSON to send
+
+            let dataToSend = { "angleOnCircle": angleOnCircle };
+            // Send it
+            p5lm.send(JSON.stringify(dataToSend));
+        }
+    }
+}
+function gotStream(stream, id) {
     console.log(stream);
     myName = id;
     //this gets called when there is someone else in the room, new or existing
@@ -67,21 +104,24 @@ function gotStream(videoObject, id) {
     //get a network id from each person who joins
 
     stream.hide();
-    creatNewVideoObject(videoObject, id);
+    creatNewVideoObject(stream, id);
 }
 
-function creatNewVideoObject(videoObject, id) {  //this is for remote and local
+function creatNewVideoObject(canvas, id) {  //this is for remote and local
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let canvasTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
+    let canvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
     let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
+    //position them to start based on how many people but we will let them move around
+    let radiansPerPerson = Math.PI / (people.length + 1);  //spread people out over 180 degrees?
 
-    people.push({ "object": myAvatarObj, "texture": canvasTexture, "id": id, "canvas": canvas });
-    positionEveryoneOnACircle();
+    angleOnCircle = people.length * radiansPerPerson + Math.PI;
+    positionOnCircle(angleOnCircle, myAvatarObj);
+    people.push({ "object": myAvatarObj, "texture": canvasTexture, "id": id, "canvas": canvas, "angle": angleOnCircle });
 }
 
 function gotDisconnect(id) {
@@ -93,23 +133,15 @@ function gotDisconnect(id) {
             break;
         }
     }
-    positionEveryoneOnACircle();    //re space everyone
-}
 
-function positionEveryoneOnACircle() {
-    //position it on a circle around the middle
-    let radiansPerPerson = Math.PI / people.length;  //spread people out over 180 degrees?
-    for (var i = 0; i < people.length; i++) {
-        let angle = i * radiansPerPerson;
-        let thisAvatar = people[i].object;
-        let distanceFromCenter = 800;
-        //imagine a circle looking down on the world and do High School math
-        angle = angle + Math.PI; //for some reason the camera starts point at 180 degrees
-        x = distanceFromCenter * Math.sin(angle);
-        z = distanceFromCenter * Math.cos(angle);
-        thisAvatar.position.set(x, 0, z);  //zero up and down
-        thisAvatar.lookAt(0, 0, 0);  //oriented towards the camera in the center
-    }
+}
+function positionOnCircle(angle, mesh) {
+    //imagine a circle looking down on the world and do High School math
+    let distanceFromCenter = 600;
+    x = distanceFromCenter * Math.sin(angle);
+    z = distanceFromCenter * Math.cos(angle);
+    mesh.position.set(x, 0, z);
+    mesh.lookAt(0, 0, 0);
 }
 
 function draw() {
@@ -125,12 +157,7 @@ function draw() {
     }
     //now daw me on  the canvas I am sending out to the group
     //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation
-    //use a mask make only the center circle to have an alpha that shows through
-    myMask.ellipseMode(CENTER);
-    myMask.clear()//clear the mask
-    myMask.fill(0, 0, 0, 255);//set alpha of mask
-    myMask.noStroke();
-    myMask.ellipse(width / 2, height / 2, 300, 300)//draw a circle of alpha
+    //myMask was drawn when ML5 face mesh returned the sillouette
     myVideo.mask(myMask);//use alpha of mask to clip the vido
 
     clear();//for making background transparent on the main picture
@@ -170,7 +197,6 @@ function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera3D);
 }
-
 
 
 /////MOUSE STUFF  ///YOU MIGHT NOT HAVE TO LOOK DOWN BELOW HERE VERY MUCH
