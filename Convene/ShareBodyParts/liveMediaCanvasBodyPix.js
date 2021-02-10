@@ -2,15 +2,25 @@
 let camera3D, scene, renderer
 let myCanvas, myVideo, myMask;
 let people = [];
-let myRoomName = "mycrazyCanvasRoomName";   //make a different room from classmates
+let myRoomName = "mycrazyCanvasBodyPixRoomName";   //make a different room from classmates
+let bodypix;
+const bodypixOptions = {
+    outputStride: 32, // 8, 16, or 32, default is 16
+    segmentationThreshold: 0.3, // 0 - 1, defaults to 0.5 
+}
+let  p5lm;
 
-let myName = prompt("name?");
+let myName; // = prompt("name?");
+
+function preload() {
+    bodypix = ml5.bodyPix(bodypixOptions);
+  }
 function setup() {
-    myCanvas = createCanvas(512, 512);
+    myCanvas = createCanvas(512, 512, videoReady);
     //  document.body.append(myCanvas.elt);
     myCanvas.hide();
 
-    myMask = createGraphics(width,height); //this is for the setting the alpha layer for me.
+    myMask = createGraphics(width, height); //this is for the setting the alpha layer for me.
 
     let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     myVideo = createCapture(captureConstraints);
@@ -20,31 +30,50 @@ function setup() {
     //myVideo.size(myCanvas.width, myCanvas.height);
     myVideo.hide()
 
-    let p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
+    p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
     p5lm.on('disconnect', gotDisconnect);
 
     //ALSO ADD AUDIO STREAM
     //addAudioStream() ;
 
+
     init3D();
 }
 
-function gotStream(stream, id) {
-    console.log(stream);
+function videoReady() {  //this gets called when create capture finishe
+    bodypix.segmentWithParts(myVideo, gotResults, bodypixOptions);  //kick start it
+}
 
+function gotResults(err, result) {
+    if (err) {
+        console.log(err);
+        return;
+    }
+    segmentation = result;
+    console.log(sementation);
+    background(255, 0, 0);
+    // image(video, 0, 0, width, height)
+    image(segmentation.partMask, 0, 0, width, height);
+
+    bodypix.segmentWithParts(video, gotResults, bodypixOptions);
+}
+
+function gotStream(videoObject, id) {
+    console.log(stream);
+    myName = id;
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
 
     stream.hide();
-    creatNewVideoObject(stream, id);
+    creatNewVideoObject(videoObject, id);
 }
 
-function creatNewVideoObject(canvas, id) {  //this is for remote and local
+function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let canvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
+    let canvasTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
     let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
@@ -101,7 +130,7 @@ function draw() {
     myMask.clear()//clear the mask
     myMask.fill(0, 0, 0, 255);//set alpha of mask
     myMask.noStroke();
-    myMask.ellipse(width/2, height/2, 300, 300)//draw a circle of alpha
+    myMask.ellipse(width / 2, height / 2, 300, 300)//draw a circle of alpha
     myVideo.mask(myMask);//use alpha of mask to clip the vido
 
     clear();//for making background transparent on the main picture
@@ -143,29 +172,7 @@ function animate() {
 }
 
 
-function addAudioStream() {
-    // Need to use the callback to get at the audio/video stream
-    myAudio = createCapture(constraints, function (stream) {
-        // Get a stream from the canvas to send
-        let canvasStream = myCanvas.elt.captureStream(15);
-        // Extract the audio tracks from the stream
-        let audioTracks = stream.getAudioTracks();
-        // Use the first audio track, add it to the canvas stream
-        if (audioTracks.length > 0) {
-            canvasStream.addTrack(audioTracks[0]);
-        }
-        // Give the canvas stream to SimpleSimplePeer as a "CAPTURE" stream
-        let p5lm = new p5LiveMedia(this, "CAPTURE", canvasStream, myRoomName + "Audio");
-        p5lm.on('stream', gotAudioStream);
-    });
 
-    myAudio.elt.muted = true;
-    myAudio.hide();
-}
-
-function gotAudioStream() {
-
-}
 /////MOUSE STUFF  ///YOU MIGHT NOT HAVE TO LOOK DOWN BELOW HERE VERY MUCH
 
 var onMouseDownMouseX = 0, onMouseDownMouseY = 0;

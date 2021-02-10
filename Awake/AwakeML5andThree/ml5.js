@@ -19,8 +19,10 @@ function setup() {
             sourceId: preferredCam
         }
     }
-    myVideo = createCapture(videoOptions, VIDEO);
+    myVideo = createCapture(videoOptions);
     myVideo.hide();
+
+
     nose = { "x": myVideo.width / 2, "y": myVideo.height / 2 };
     poseNet = ml5.poseNet(myVideo, modelReady);
     poseNet.on("pose", gotPoses);
@@ -36,7 +38,7 @@ function modelReady() {
 
 // A function that gets called every time there's an update from the model
 function gotPoses(results) {
-    // console.log(results[0].pose.nose);
+    //console.log(results);
     if (!results[0]) return;
     poses = results;
     progress = "predicting";
@@ -47,7 +49,7 @@ function gotPoses(results) {
     if (thisWrist.confidence > .3 && thisWrist.y < height / 2) {
         handRaised = true;
     }
-    console.log(handRaised);
+    // console.log(handRaised);
     if (thisNose.confidence > .8) {
         nose.x = thisNose.x;
         nose.y = thisNose.y;
@@ -109,7 +111,7 @@ function init3D() {
     p5CanvasTexture = new THREE.Texture(myCanvas.elt);  //NOTICE THE .elt  this give the element
     let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
-    myAvatarObj.position.set(0, 0, -500);
+
     angleOnCircle = Math.PI;
     positionOnCircle(angleOnCircle, myAvatarObj);
     scene.add(myAvatarObj);
