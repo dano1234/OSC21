@@ -14,7 +14,7 @@ function setup() {
     myCanvas.hide();
 
     myMask = createGraphics(width, height); //this is for the setting the alpha layer for me.
-    myMask.background(0, 0, 0, 255);
+    //myMask.rect(0, 0, width,height);
     let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     myVideo = createCapture(captureConstraints);
     myVideo.elt.muted = true;
@@ -65,7 +65,7 @@ function gotFaceResults(results) {
         outline = results[0].annotations.silhouette;
         myMask.clear();
         myMask.noStroke();
-        myMask.fill(255, 255, 255, 255);//some nice alphaa in fourth number
+        myMask.fill(0, 0, 0, 255);//some nice alphaa in fourth number
         myMask.beginShape();
         for (var i = 0; i < outline.length - 1; i++) {
             myMask.curveVertex(outline[i][0], outline[i][1]);
@@ -93,13 +93,12 @@ function gotFaceResults(results) {
             let dataToSend = { "angleOnCircle": angleOnCircle };
             // Send it
             p5lm.send(JSON.stringify(dataToSend));
-
         }
     }
 }
 function gotStream(stream, id) {
     console.log(stream);
-    myNamae = id;
+    myName = id;
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
