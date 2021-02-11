@@ -1,7 +1,7 @@
 
 let camera3D, scene, renderer
 let myCanvas, myVideo;
-let people = [];
+let people = { "room25":[], "room56":[]};
 
 function setup() {
     myCanvas = createCanvas(512, 512);
@@ -31,6 +31,7 @@ function gotStream(stream, id) {
 }
 
 function gotDisconnect(id) {
+
     for(var i = 0; i < people.length; i++){
         if (people[i].id == id){
             people[i].p5Canvas.remove(); //dom version
@@ -51,7 +52,7 @@ function creatNewVideoObject(canvas,id) {  //this is for remote and local
 
     scene.add(myAvatarObj);
 
-    people.push({"object":myAvatarObj, "texture":p5CanvasTexture, "id": id, "p5Canvas":canvas });
+    people[id] = {"object":myAvatarObj, "texture":p5CanvasTexture, "id": id, "p5Canvas":canvas };
     positionEveryoneOnACircle();
 }
 

@@ -32,37 +32,87 @@ function setup() {
     init3D();
 }
 
-function gotStream(stream, id) {
-    console.log(stream);
+function gotStream(videoObject, id) {
+
 
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
 
-    stream.hide();
-    creatNewVideoObject(stream, id);
+   // stream.hide();
+    creatNewVideoObject(videoObject, id);
 }
 
-function creatNewVideoObject(canvas, id) {  //this is for remote and local
+function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
-    var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let canvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
+    var videoGeometry = new THREE.PlaneGeometry(width,height);
+
+    //usually you can just feed the videoObject to the texture.  We added an extra graphics stage to remove background
+    let extraGraphicsStage = createGraphics(width,height)
+    let myTexture;
+    if (id == "me"){
+        myTexture = new THREE.Texture(videoObject.elt );  //NOTICE THE .elt  this give the element
+    }else{
+        myTexture = new THREE.Texture(extraGraphicsStage.elt );  //NOTICE THE .elt  this give the element
+    }
+
     //opacity: 1
     
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture , transparent: true});
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
 
-    people.push({ "object": myAvatarObj, "texture": canvasTexture, "id": id, "canvas": canvas });
+    people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject , "extraGraphicsStage": extraGraphicsStage  });
     positionEveryoneOnACircle();
+}
+
+function draw() {
+    //other people
+    //go through all the people an update their texture, animate would be another place for this
+    for (var i = 0; i < people.length; i++) {
+        if (people[i].id == "me") {
+            people[i].texture.needsUpdate = true;
+        } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
+            //remove background that became black and not transparent  in transmission
+            people[i].extraGraphicsStage.image(people[i].videoObject,0,0);
+            people[i].extraGraphicsStage.loadPixels();
+            for(var j = 0; j < people[i].extraGraphicsStage.pixels.length; j+=4){
+                let r = people[i].extraGraphicsStage.pixels[j];
+                let g = people[i].extraGraphicsStage.pixels[j+1];
+                let b = people[i].extraGraphicsStage.pixels[j+2];
+                if(r+g+b < 10){
+                    people[i].extraGraphicsStage.pixels[j+3] = 0;
+                }
+            }
+            people[i].extraGraphicsStage.updatePixels();
+            people[i].texture.needsUpdate = true;
+        }
+    }
+
+    //now daw me on  the canvas I am sending out to the group
+    //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation
+    //use a mask make only the center circle to have an alpha that shows through
+    myMask.ellipseMode(CENTER);
+    myMask.clear()//clear the mask
+    myMask.fill(255, 255, 255, 255);//set alpha of mask
+    myMask.noStroke();
+    myMask.ellipse(width/2, height/2, 300, 300)//draw a circle of alpha
+    myVideo.mask(myMask);//use alpha of mask to clip the vido
+
+    //clear();//for making background transparent on the main picture
+    clear();
+    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
+    textSize(72);
+    fill(255)
+    text(myName, width / 2 - textWidth(myName) / 2, height - 80);
 }
 
 function gotDisconnect(id) {
     for (var i = 0; i < people.length; i++) {
         if (people[i].id == id) {
-            people[i].canvas.remove(); //dom version
+            people[i].videoObject.remove(); //dom version
             scene.remove(people[i].object); //three.js version
             people.splice(i, 1);  //remove from our variable
             break;
@@ -87,32 +137,6 @@ function positionEveryoneOnACircle() {
     }
 }
 
-function draw() {
-    //other people
-    //go through all the people an update their texture, animate would be another place for this
-    for (var i = 0; i < people.length; i++) {
-        if (people[i].id == "me") {
-            people[i].texture.needsUpdate = true;
-        } else if (people[i].canvas.elt.readyState == people[i].canvas.elt.HAVE_ENOUGH_DATA) {
-            people[i].texture.needsUpdate = true;
-        }
-    }
-    //now daw me on  the canvas I am sending out to the group
-    //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation
-    //use a mask make only the center circle to have an alpha that shows through
-    myMask.ellipseMode(CENTER);
-    myMask.clear()//clear the mask
-    myMask.fill(0, 0, 0, 255);//set alpha of mask
-    myMask.noStroke();
-    myMask.ellipse(width/2, height/2, 300, 300)//draw a circle of alpha
-    myVideo.mask(myMask);//use alpha of mask to clip the vido
-
-    clear();//for making background transparent on the main picture
-    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-    textSize(72);
-    fill(255)
-    text(myName, width / 2 - textWidth(myName) / 2, height - 80);
-}
 
 function init3D() {
     scene = new THREE.Scene();
