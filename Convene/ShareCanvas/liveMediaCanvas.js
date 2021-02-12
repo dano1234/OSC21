@@ -1,26 +1,25 @@
 
 let camera3D, scene, renderer
-let myCanvas, myVideo, myMask;
+let myCanvas, myVideo;
 let people = [];
 let myRoomName = "mycrazyCanvasRoomName";   //make a different room from classmates
 let  p5lm ;
+let words = []; //bounce words arorund to show off canvas
 
 
-let myName = prompt("name?");
+
 function setup() {
     myCanvas = createCanvas(512, 512);
-    //  document.body.append(myCanvas.elt);
     myCanvas.hide();
 
-    myMask = createGraphics(width,height); //this is for the setting the alpha layer for me.
-
-    let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
-    myVideo = createCapture(captureConstraints);
-    myVideo.elt.muted = true;
+    //let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
+   // myVideo = createCapture(captureConstraints);
     //below is simpler if you don't need to select Camera because default is okay
-    //myVideo = createCapture(VIDEO);
-    //myVideo.size(myCanvas.width, myCanvas.height);
+    myVideo = createCapture(VIDEO);
+    myVideo.size(myCanvas.width, myCanvas.height);
+    myVideo.elt.muted = true;
     myVideo.hide()
+    
 
     p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
@@ -29,40 +28,78 @@ function setup() {
     //ALSO ADD AUDIO STREAM
     //addAudioStream() ;
 
+    let textInput = createInput("Add Your Text");
+    textInput.input(myTextInputEvent);
+    textInput.position(200,100);
     init3D();
 }
 
-function gotStream(stream, id) {
-    console.log(stream);
+function myTextInputEvent() {
+    console.log(keyCode);
+    if (keyCode === 13) {
+    console.log(this.value());
+    //when they hit return in text box add a new word
+    //use an "object literal" to stor multiple variables for each word in JSON format, place them randomly
+    words.push( {"word":this.value(), "x": random(0,width), "y":random(0,height), "xSpeed":random(-1,1), "ySpeed":random(-1,1) } );
+    }
+}
+
+function gotStream(videoObject, id) {
+
 
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
 
-    stream.hide();
-    creatNewVideoObject(stream, id);
+   // stream.hide();
+    creatNewVideoObject(videoObject, id);
 }
 
-function creatNewVideoObject(canvas, id) {  //this is for remote and local
+function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
-    var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let canvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
-    //opacity: 1
-    
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    var videoGeometry = new THREE.PlaneGeometry(width,height);
+    myTexture = new THREE.Texture(videoObject.elt );  //NOTICE THE .elt  this give the element
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture});
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
 
-    people.push({ "object": myAvatarObj, "texture": canvasTexture, "id": id, "canvas": canvas });
+    people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject   });
     positionEveryoneOnACircle();
+}
+
+function draw() {
+    //other people
+    //go through all the people an update their texture, animate would be another place for this
+    for (var i = 0; i < people.length; i++) {
+        if (people[i].id == "me") {
+            people[i].texture.needsUpdate = true;
+        } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
+            //check that the transmission arrived okay
+            people[i].texture.needsUpdate = true;
+        }
+    }
+
+    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
+    //bouncing ball logic to show off canvas with bouncing text.
+    for(var i = 0; i< words.length; i++){
+        let wordInfo = words[i];
+        wordInfo.x += wordInfo.ySpeed;
+        if (wordInfo.x > width ||  wordInfo.x < 0 ) wordInfo.xSpeed= -wordInfo.xSpeed
+         wordInfo.y  += wordInfo.xSpeed;
+         if (wordInfo.y > height || wordInfo.y < 0 ) wordInfo.ySpeed= -wordInfo.ySpeed
+        textSize(14);
+        fill(255)
+        text(wordInfo.word, wordInfo.x,  wordInfo.y);
+    }
+
 }
 
 function gotDisconnect(id) {
     for (var i = 0; i < people.length; i++) {
         if (people[i].id == id) {
-            people[i].canvas.remove(); //dom version
+            people[i].videoObject.remove(); //dom version
             scene.remove(people[i].object); //three.js version
             people.splice(i, 1);  //remove from our variable
             break;
@@ -87,32 +124,6 @@ function positionEveryoneOnACircle() {
     }
 }
 
-function draw() {
-    //other people
-    //go through all the people an update their texture, animate would be another place for this
-    for (var i = 0; i < people.length; i++) {
-        if (people[i].id == "me") {
-            people[i].texture.needsUpdate = true;
-        } else if (people[i].canvas.elt.readyState == people[i].canvas.elt.HAVE_ENOUGH_DATA) {
-            people[i].texture.needsUpdate = true;
-        }
-    }
-    //now daw me on  the canvas I am sending out to the group
-    //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation
-    //use a mask make only the center circle to have an alpha that shows through
-    myMask.ellipseMode(CENTER);
-    myMask.clear()//clear the mask
-    myMask.fill(0, 0, 0, 255);//set alpha of mask
-    myMask.noStroke();
-    myMask.ellipse(width/2, height/2, 300, 300)//draw a circle of alpha
-    myVideo.mask(myMask);//use alpha of mask to clip the vido
-
-    clear();//for making background transparent on the main picture
-    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-    textSize(72);
-    fill(255)
-    text(myName, width / 2 - textWidth(myName) / 2, height - 80);
-}
 
 function init3D() {
     scene = new THREE.Scene();
