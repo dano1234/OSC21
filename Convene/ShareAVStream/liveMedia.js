@@ -15,6 +15,9 @@ function setup() {
     myVideo.hide()
 
     init3D();
+
+    //create the local thing
+    creatNewVideoObject(myVideo,"me");
 }
 
 function videoLoaded(stream) {
@@ -34,7 +37,7 @@ function gotDisconnect(id) {
 
     for(var i = 0; i < people.length; i++){
         if (people[i].id == id){
-            people[i].p5Canvas.remove(); //dom version
+            people[i].videoObject.remove(); //dom version
            scene.remove(people[i].object); //three.js version
             people.splice(i,1);  //remove from our variable
             break;
@@ -75,16 +78,12 @@ function positionEveryoneOnACircle() {
 function draw() {
     //go through all the people an update their texture, animate would be another place for this
     for (var i = 0; i < people.length; i++){  
-        if (people[i].id == "me") {
-            people[i].texture.needsUpdate = true;
-        } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
+        if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
             //check that the transmission arrived okay
+            //then tell three that something has changed.
             people[i].texture.needsUpdate = true;
         }
     }
-    //look after the canvas I am sending out to the group
-    clear();//for making background transparent
-    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
 }
 
 function init3D() {
@@ -94,8 +93,6 @@ function init3D() {
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
-
-    creatNewVideoObject(myVideo,"me");
 
     let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
     //let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)

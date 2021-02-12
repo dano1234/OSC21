@@ -1,152 +1,125 @@
 
 let camera3D, scene, renderer
-let myCanvas, myVideo, myMask;
-let people = [];
-let myRoomName = "mycrazyCanvas_BGRemoval_RoomName";   //make a different room from classmates
-let  p5lm ;
+let myCanvas, myVideo;
+let people = {};  //make it an associatvie array with each person labeled by network id
+let p5lm 
 
-
-let myName = prompt("name?");
 function setup() {
     myCanvas = createCanvas(512, 512);
-    //  document.body.append(myCanvas.elt);
     myCanvas.hide();
-
-    myMask = createGraphics(width,height); //this is for the setting the alpha layer for me.
-
-    //let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
-    //myVideo = createCapture(captureConstraints);
-
+    //let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
+    //myVideo = createCapture(captureConstraints, videoLoaded);
     //below is simpler if you don't need to select Camera because default is okay
-    myVideo = createCapture(VIDEO);
+    myVideo = createCapture(VIDEO, videoLoaded);
     myVideo.size(myCanvas.width, myCanvas.height);
-    
     myVideo.elt.muted = true;
     myVideo.hide()
 
-    p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
-    p5lm.on('stream', gotStream);
-    p5lm.on('disconnect', gotDisconnect);
-
-    //ALSO ADD AUDIO STREAM
-    //addAudioStream() ;
-
     init3D();
+
+    //create the local thing
+    creatNewVideoObject(myVideo, "me");
+}
+
+///move people around and tell them about 
+function keyPressed() {
+    let me = people["me"];
+    if (keyCode == 37 || key == "a") {
+        me.angleOnCircle -= .01;
+
+    } else if (keyCode == 39 || key == "d") {
+        me.angleOnCircle += .01;
+    
+
+    } else if (keyCode == 38 || key == "w") {
+
+    } else if (keyCode == 40 || key == "s") {
+
+    }
+    positionOnCircle(me.angleOnCircle, me.object); //change it locally 
+    //send it to others
+    let dataToSend = { "angleOnCircle": me.angleOnCircle };
+    p5lm.send(JSON.stringify(dataToSend));
+
+}
+
+function videoLoaded(stream) {
+    p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
+    p5lm.on('stream', gotStream);
+    p5lm.on('data', gotData);
+    p5lm.on('disconnect', gotDisconnect);
+}
+
+function gotData(data, id) {
+    // If it is JSON, parse it
+    let d = JSON.parse(data);
+    positionOnCircle(d.angleOnCircle, people[id].object);
 }
 
 function gotStream(videoObject, id) {
     //this gets called when there is someone else in the room, new or existing
-    //don't want the dom object, will use in p5 and three.js instead
+    videoObject.hide();  //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
-
-   // stream.hide();
     creatNewVideoObject(videoObject, id);
 }
 
+function gotDisconnect(id) {
+    people[id].videoObject.remove(); //dom version
+    scene.remove(people[id].object); //three.js version
+    delete people[id];  //remove from our variable
+}
+
 function creatNewVideoObject(videoObject, id) {  //this is for remote and local
-
-    var videoGeometry = new THREE.PlaneGeometry(width,height);
-
-    //usually you can just feed the videoObject to the texture.  We added an extra graphics stage to remove background
-    let extraGraphicsStage = createGraphics(width,height)
-    let myTexture;
-    if (id == "me"){
-        myTexture = new THREE.Texture(videoObject.elt );  //NOTICE THE .elt  this give the element
-    }else{
-        myTexture = new THREE.Texture(extraGraphicsStage.elt );  //NOTICE THE .elt  this give the element
-    }
-
-    //opacity: 1
-    
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture , transparent: true});
+    var videoGeometry = new THREE.PlaneGeometry(512, 512);
+    let myTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture, side: THREE.DoubleSide });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
 
-    people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject , "extraGraphicsStage": extraGraphicsStage  });
-    positionEveryoneOnACircle();
+    //they can move that around but we need to put you somewhere to start
+    angleOnCircle = positionOnCircle(null, myAvatarObj);
+
+    //remember a bunch of things about each connection in json but we are really only using texture in draw
+    //use an named or associate array where each oject is labeled with an ID
+    people[id] = { "object": myAvatarObj, "texture": myTexture, "id": id, "videoObject": videoObject, "angleOnCircle": angleOnCircle };
+
+}
+
+function positionOnCircle(angle, thisAvatar) {
+    //position it on a circle around the middle
+    if (angle == null) { //first time
+        angle = random(2*Math.PI); 
+    }
+      //imagine a circle looking down on the world and do High School math
+    let distanceFromCenter = 800;
+    x = distanceFromCenter * Math.sin(angle);
+    z = distanceFromCenter * Math.cos(angle);
+    thisAvatar.position.set(x, 0, z);  //zero up and down
+    thisAvatar.lookAt(0, 0, 0);  //oriented towards the camera in the center
+    return angle;
 }
 
 function draw() {
-    //other people
     //go through all the people an update their texture, animate would be another place for this
-    for (var i = 0; i < people.length; i++) {
-        if (people[i].id == "me") {
-            people[i].texture.needsUpdate = true;
-        } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
-            //remove background that became black and not transparent  in transmission
-            people[i].extraGraphicsStage.image(people[i].videoObject,0,0);
-            people[i].extraGraphicsStage.loadPixels();
-            for(var j = 0; j < people[i].extraGraphicsStage.pixels.length; j+=4){
-                let r = people[i].extraGraphicsStage.pixels[j];
-                let g = people[i].extraGraphicsStage.pixels[j+1];
-                let b = people[i].extraGraphicsStage.pixels[j+2];
-                if(r+g+b < 10){
-                    people[i].extraGraphicsStage.pixels[j+3] = 0;
-                }
-            }
-            people[i].extraGraphicsStage.updatePixels();
-            people[i].texture.needsUpdate = true;
+    for(id in people){
+        let thisPerson = people[id];
+        if (thisPerson .videoObject.elt.readyState == thisPerson .videoObject.elt.HAVE_ENOUGH_DATA) {
+            //check that the transmission arrived okay
+            //then tell three that something has changed.
+            thisPerson.texture.needsUpdate = true;
         }
     }
-
-    //now daw me on  the canvas I am sending out to the group
-    //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation
-    //use a mask make only the center circle to have an alpha that shows through
-    myMask.ellipseMode(CENTER);
-    myMask.clear()//clear the mask
-    myMask.fill(255, 255, 255, 255);//set alpha of mask
-    myMask.noStroke();
-    myMask.ellipse(width/2, height/2, 300, 300)//draw a circle of alpha
-    myVideo.mask(myMask);//use alpha of mask to clip the vido
-
-    //clear();//for making background transparent on the main picture
-    clear();
-    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-    textSize(72);
-    fill(255)
-    text(myName, width / 2 - textWidth(myName) / 2, height - 80);
 }
-
-function gotDisconnect(id) {
-    for (var i = 0; i < people.length; i++) {
-        if (people[i].id == id) {
-            people[i].videoObject.remove(); //dom version
-            scene.remove(people[i].object); //three.js version
-            people.splice(i, 1);  //remove from our variable
-            break;
-        }
-    }
-    positionEveryoneOnACircle();    //re space everyone
-}
-
-function positionEveryoneOnACircle() {
-    //position it on a circle around the middle
-    let radiansPerPerson = Math.PI / people.length;  //spread people out over 180 degrees?
-    for (var i = 0; i < people.length; i++) {
-        let angle = i * radiansPerPerson;
-        let thisAvatar = people[i].object;
-        let distanceFromCenter = 800;
-        //imagine a circle looking down on the world and do High School math
-        angle = angle + Math.PI; //for some reason the camera starts point at 180 degrees
-        x = distanceFromCenter * Math.sin(angle);
-        z = distanceFromCenter * Math.cos(angle);
-        thisAvatar.position.set(x, 0, z);  //zero up and down
-        thisAvatar.lookAt(0, 0, 0);  //oriented towards the camera in the center
-    }
-}
-
 
 function init3D() {
     scene = new THREE.Scene();
-    camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera3D = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
-
-    creatNewVideoObject(myCanvas, "me");
 
     let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
     //let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
@@ -169,30 +142,6 @@ function animate() {
     renderer.render(scene, camera3D);
 }
 
-
-function addAudioStream() {
-    // Need to use the callback to get at the audio/video stream
-    myAudio = createCapture(constraints, function (stream) {
-        // Get a stream from the canvas to send
-        let canvasStream = myCanvas.elt.captureStream(15);
-        // Extract the audio tracks from the stream
-        let audioTracks = stream.getAudioTracks();
-        // Use the first audio track, add it to the canvas stream
-        if (audioTracks.length > 0) {
-            canvasStream.addTrack(audioTracks[0]);
-        }
-        // Give the canvas stream to SimpleSimplePeer as a "CAPTURE" stream
-        let p5lm = new p5LiveMedia(this, "CAPTURE", canvasStream, myRoomName + "Audio");
-        p5lm.on('stream', gotAudioStream);
-    });
-
-    myAudio.elt.muted = true;
-    myAudio.hide();
-}
-
-function gotAudioStream() {
-
-}
 /////MOUSE STUFF  ///YOU MIGHT NOT HAVE TO LOOK DOWN BELOW HERE VERY MUCH
 
 var onMouseDownMouseX = 0, onMouseDownMouseY = 0;
