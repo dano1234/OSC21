@@ -1,25 +1,26 @@
 
 let camera3D, scene, renderer
-let myCanvas, myVideo;
+let myCanvas, myVideo, myMask;
 let people = [];
 let myRoomName = "mycrazyCanvasRoomName";   //make a different room from classmates
 let  p5lm ;
-let words = []; //bounce words arorund to show off canvas
 
 
-
+let myName = prompt("name?");
 function setup() {
     myCanvas = createCanvas(512, 512);
+    //  document.body.append(myCanvas.elt);
     myCanvas.hide();
 
-    //let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
-   // myVideo = createCapture(captureConstraints);
-    //below is simpler if you don't need to select Camera because default is okay
-    myVideo = createCapture(VIDEO);
-    myVideo.size(myCanvas.width, myCanvas.height);
+    myMask = createGraphics(width,height); //this is for the setting the alpha layer for me.
+
+    let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
+    myVideo = createCapture(captureConstraints);
     myVideo.elt.muted = true;
+    //below is simpler if you don't need to select Camera because default is okay
+    //myVideo = createCapture(VIDEO);
+    //myVideo.size(myCanvas.width, myCanvas.height);
     myVideo.hide()
-    
 
     p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
@@ -28,25 +29,9 @@ function setup() {
     //ALSO ADD AUDIO STREAM
     //addAudioStream() ;
 
-    let textInput = createInput("Add Your Text");
-    textInput.input(myTextInputEvent);
-    textInput.position(200,100);
     init3D();
 }
 
-<<<<<<< HEAD
-function myTextInputEvent() {
-    console.log(keyCode);
-    if (keyCode === 13) {
-    console.log(this.value());
-    //when they hit return in text box add a new word
-    //use an "object literal" to stor multiple variables for each word in JSON format, place them randomly
-    words.push( {"word":this.value(), "x": random(0,width), "y":random(0,height), "xSpeed":random(-1,1), "ySpeed":random(-1,1) } );
-    }
-}
-
-=======
->>>>>>> e912e59de45ecf9bf8541913dddf1dfacfcdd116
 function gotStream(videoObject, id) {
 
 
@@ -59,12 +44,6 @@ function gotStream(videoObject, id) {
 }
 
 function creatNewVideoObject(videoObject, id) {  //this is for remote and local
-<<<<<<< HEAD
-
-    var videoGeometry = new THREE.PlaneGeometry(width,height);
-    myTexture = new THREE.Texture(videoObject.elt );  //NOTICE THE .elt  this give the element
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture});
-=======
 
     var videoGeometry = new THREE.PlaneGeometry(width,height);
 
@@ -80,17 +59,12 @@ function creatNewVideoObject(videoObject, id) {  //this is for remote and local
     //opacity: 1
     
     let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture , transparent: true});
->>>>>>> e912e59de45ecf9bf8541913dddf1dfacfcdd116
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
 
-<<<<<<< HEAD
-    people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject   });
-=======
     people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject , "extraGraphicsStage": extraGraphicsStage  });
->>>>>>> e912e59de45ecf9bf8541913dddf1dfacfcdd116
     positionEveryoneOnACircle();
 }
 
@@ -101,9 +75,6 @@ function draw() {
         if (people[i].id == "me") {
             people[i].texture.needsUpdate = true;
         } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
-<<<<<<< HEAD
-            //check that the transmission arrived okay
-=======
             //remove background that became black and not transparent  in transmission
             people[i].extraGraphicsStage.image(people[i].videoObject,0,0);
             people[i].extraGraphicsStage.loadPixels();
@@ -116,26 +87,10 @@ function draw() {
                 }
             }
             people[i].extraGraphicsStage.updatePixels();
->>>>>>> e912e59de45ecf9bf8541913dddf1dfacfcdd116
             people[i].texture.needsUpdate = true;
         }
     }
 
-<<<<<<< HEAD
-    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-    //bouncing ball logic to show off canvas with bouncing text.
-    for(var i = 0; i< words.length; i++){
-        let wordInfo = words[i];
-        wordInfo.x += wordInfo.ySpeed;
-        if (wordInfo.x > width ||  wordInfo.x < 0 ) wordInfo.xSpeed= -wordInfo.xSpeed
-         wordInfo.y  += wordInfo.xSpeed;
-         if (wordInfo.y > height || wordInfo.y < 0 ) wordInfo.ySpeed= -wordInfo.ySpeed
-        textSize(14);
-        fill(255)
-        text(wordInfo.word, wordInfo.x,  wordInfo.y);
-    }
-
-=======
     //now daw me on  the canvas I am sending out to the group
     //to justify using a canvas instead  of just sending out the straigh video I will do a little maninpulation
     //use a mask make only the center circle to have an alpha that shows through
@@ -152,7 +107,6 @@ function draw() {
     textSize(72);
     fill(255)
     text(myName, width / 2 - textWidth(myName) / 2, height - 80);
->>>>>>> e912e59de45ecf9bf8541913dddf1dfacfcdd116
 }
 
 function gotDisconnect(id) {
