@@ -1,17 +1,17 @@
 
 let camera3D, scene, renderer
 let myCanvas, myVideo;
-let people = { "room25":[], "room56":[]};
+let people = [];
 
 function setup() {
     myCanvas = createCanvas(512, 512);
     myCanvas.hide();
-    let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
-    myVideo = createCapture(captureConstraints, videoLoaded);
-    myVideo.elt.muted = true;
+    //let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
+    //myVideo = createCapture(captureConstraints, videoLoaded);
     //below is simpler if you don't need to select Camera because default is okay
-    //myVideo = createCapture(VIDEO, videoLoaded);
-    //myVideo.size(myCanvas.width, myCanvas.height);
+    myVideo = createCapture(VIDEO, videoLoaded);
+    myVideo.size(myCanvas.width, myCanvas.height);
+    myVideo.elt.muted = true;
     myVideo.hide()
 
     init3D();
@@ -23,11 +23,11 @@ function videoLoaded(stream) {
     p5lm.on('disconnect', gotDisconnect);
 }
 
-function gotStream(stream, id) {
+function gotStream(videoObject, id) {
     //this gets called when there is someone else in the room, new or existing
-    stream.hide();  //don't want the dom object, will use in p5 and three.js instead
+    videoObject.hide();  //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
-    creatNewVideoObject(stream,id);
+    creatNewVideoObject(videoObject,id);
 }
 
 function gotDisconnect(id) {
@@ -43,16 +43,16 @@ function gotDisconnect(id) {
     positionEveryoneOnACircle();    //re space everyone
 }
 
-function creatNewVideoObject(canvas,id) {  //this is for remote and local
+function creatNewVideoObject(videoObject,id) {  //this is for remote and local
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let p5CanvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
+    let myTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture, side: THREE.DoubleSide });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
-
+    
     scene.add(myAvatarObj);
-
-    people[id] = {"object":myAvatarObj, "texture":p5CanvasTexture, "id": id, "p5Canvas":canvas };
+    //remember a bunch of things about each connection in json but we are really only using texture in draw
+    people.push({"object":myAvatarObj, "texture":myTexture, "id": id, "videoObject":videoObject });
     positionEveryoneOnACircle();
 }
 
@@ -75,7 +75,12 @@ function positionEveryoneOnACircle() {
 function draw() {
     //go through all the people an update their texture, animate would be another place for this
     for (var i = 0; i < people.length; i++){  
-        people[i].texture.needsUpdate = true;
+        if (people[i].id == "me") {
+            people[i].texture.needsUpdate = true;
+        } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
+            //check that the transmission arrived okay
+            people[i].texture.needsUpdate = true;
+        }
     }
     //look after the canvas I am sending out to the group
     clear();//for making background transparent
@@ -90,7 +95,7 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    creatNewVideoObject(myCanvas,"me");
+    creatNewVideoObject(myVideo,"me");
 
     let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
     //let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
