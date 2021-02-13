@@ -20,7 +20,6 @@ function setup() {
     //below is simpler if you don't need to select Camera because default is okay
     myVideo = createCapture(VIDEO);
     myVideo.size(myCanvas.width, myCanvas.height);
-
     myVideo.elt.muted = true;
     myVideo.hide()
 
