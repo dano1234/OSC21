@@ -6,21 +6,25 @@ let myRoomName = "mycrazyFaceCanvasRoomName";   //make a different room from cla
 let faceMesh;
 let angleOnCircle;
 let p5lm;
+let progress = "loading Face ML";
 
 let myName; //= prompt("name?");
 function setup() {
     myCanvas = createCanvas(512, 512);
     //  document.body.append(myCanvas.elt);
     myCanvas.hide();
+    myMask = createGraphics(width, height); //this is for the setting the alpha layer around face
+    myMask.fill(0,0,0,255); //opaque to start
+    myMask.rect(0, 0, width,height);
 
-    myMask = createGraphics(width, height); //this is for the setting the alpha layer for me.
     //myMask.rect(0, 0, width,height);
     let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     myVideo = createCapture(captureConstraints);
-    myVideo.elt.muted = true;
+
     //below is simpler if you don't need to select Camera because default is okay
     //myVideo = createCapture(VIDEO);
-    //myVideo.size(myCanvas.width, myCanvas.height);
+    // myVideo.size(myCanvas.width, myCanvas.height);
+    myVideo.elt.muted = true;
     myVideo.hide()
 
     p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
@@ -33,12 +37,11 @@ function setup() {
     //addAudioStream() ;
 
     facemesh = ml5.facemesh(myVideo, function () {
-        progress = "loaded";
+        progress = "ML model loaded";
         console.log('face mesh model ready!')
     });
 
     facemesh.on("predict", gotFaceResults);
-
 
     init3D();
 }
@@ -58,7 +61,7 @@ function gotData(data, id) {
 
 function gotFaceResults(results) {
     if (results && results.length > 0) {
-        progress = "predicting";
+        progress = "";
         //  console.log(results[0]);
         //DRAW THE ALPHA MASK FROM THE OUTLINE OF MASK
 
@@ -97,7 +100,7 @@ function gotFaceResults(results) {
     }
 }
 function gotStream(stream, id) {
-    console.log(stream);
+
     myName = id;
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
@@ -107,11 +110,21 @@ function gotStream(stream, id) {
     creatNewVideoObject(stream, id);
 }
 
-function creatNewVideoObject(canvas, id) {  //this is for remote and local
+function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let canvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: canvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
+    //usually you can just feed the videoObject to the texture.  We added an extra graphics stage to remove background
+    let extraGraphicsStage = createGraphics(width, height)
+    let myTexture;
+    if (id == "me") {
+        myTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
+    } else {
+        myTexture = new THREE.Texture(extraGraphicsStage.elt);  //NOTICE THE .elt  this give the element
+    }
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture , transparent: true});
+        //NEED HELP FIGURING THIS OUT. There has to be a way to remove background without the pixel by pixel loop currently in draw
+    //instead should be able to use custom blending to do this in the GPU
+    //https://threejs.org/docs/#api/en/constants/CustomBlendingEquations
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
@@ -121,7 +134,8 @@ function creatNewVideoObject(canvas, id) {  //this is for remote and local
 
     angleOnCircle = people.length * radiansPerPerson + Math.PI;
     positionOnCircle(angleOnCircle, myAvatarObj);
-    people.push({ "object": myAvatarObj, "texture": canvasTexture, "id": id, "canvas": canvas, "angle": angleOnCircle });
+
+    people.push({ "object": myAvatarObj, "texture": myTexture, "id": id, "videoObject": videoObject, "extraGraphicsStage": extraGraphicsStage });
 }
 
 function gotDisconnect(id) {
@@ -150,7 +164,19 @@ function draw() {
     for (var i = 0; i < people.length; i++) {
         if (people[i].id == "me") {
             people[i].texture.needsUpdate = true;
-        } else if (people[i].canvas.elt.readyState == people[i].canvas.elt.HAVE_ENOUGH_DATA) {
+        } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
+            //remove background that became black and not transparent  in transmission
+            people[i].extraGraphicsStage.image(people[i].videoObject, 0, 0);
+            people[i].extraGraphicsStage.loadPixels();
+            for (var j = 0; j < people[i].extraGraphicsStage.pixels.length; j += 4) {
+                let r = people[i].extraGraphicsStage.pixels[j];
+                let g = people[i].extraGraphicsStage.pixels[j + 1];
+                let b = people[i].extraGraphicsStage.pixels[j + 2];
+                if (r + g + b < 10) {
+                    people[i].extraGraphicsStage.pixels[j + 3] = 0;
+                }
+            }
+            people[i].extraGraphicsStage.updatePixels();
             people[i].texture.needsUpdate = true;
         }
 
@@ -161,10 +187,12 @@ function draw() {
     myVideo.mask(myMask);//use alpha of mask to clip the vido
 
     clear();//for making background transparent on the main picture
+
     image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-    textSize(72);
+    textSize(32);
     fill(255)
     text(myName, width / 2 - textWidth(myName) / 2, height - 80);
+    text(progress, 100, 100);
 }
 
 function init3D() {

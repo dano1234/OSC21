@@ -3,9 +3,9 @@ let camera3D, scene, renderer
 let myCanvas, myVideo;
 let people = [];
 let myRoomName = "mycrazyCanvasRoomName";   //make a different room from classmates
-let  p5lm ;
+let p5lm;
 let words = []; //bounce words arorund to show off canvas
-
+let textInput;
 
 
 function setup() {
@@ -13,13 +13,13 @@ function setup() {
     myCanvas.hide();
 
     //let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
-   // myVideo = createCapture(captureConstraints);
+    // myVideo = createCapture(captureConstraints);
     //below is simpler if you don't need to select Camera because default is okay
     myVideo = createCapture(VIDEO);
     myVideo.size(myCanvas.width, myCanvas.height);
     myVideo.elt.muted = true;
     myVideo.hide()
-    
+
 
     p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
     p5lm.on('stream', gotStream);
@@ -28,44 +28,41 @@ function setup() {
     //ALSO ADD AUDIO STREAM
     //addAudioStream() ;
 
-    let textInput = createInput("Add Your Text");
-    textInput.input(myTextInputEvent);
-    textInput.position(200,100);
+    textInput = createInput("");
+    let button = createButton("Add Text");
+    button.mousePressed( myTextInputEvent);
     init3D();
 }
 
 function myTextInputEvent() {
-    console.log(keyCode);
-    if (keyCode === 13) {
-    console.log(this.value());
-    //when they hit return in text box add a new word
-    //use an "object literal" to stor multiple variables for each word in JSON format, place them randomly
-    words.push( {"word":this.value(), "x": random(0,width), "y":random(0,height), "xSpeed":random(-1,1), "ySpeed":random(-1,1) } );
-    }
+
+        console.log(textInput.value());
+        //when they hit return in text box add a new word
+        //use an "object literal" to stor multiple variables for each word in JSON format, place them randomly
+        if (textInput.value() != "")
+        words.push({ "word": textInput.value(), "x": random(0, width), "y": random(0, height), "xSpeed": 1, "ySpeed": 1 });
+
 }
 
 function gotStream(videoObject, id) {
-
-
     //this gets called when there is someone else in the room, new or existing
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
-
-   // stream.hide();
+    // stream.hide();  //we are using the video in Threejs so hide the DOM version
     creatNewVideoObject(videoObject, id);
 }
 
 function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
-    var videoGeometry = new THREE.PlaneGeometry(width,height);
-    myTexture = new THREE.Texture(videoObject.elt );  //NOTICE THE .elt  this give the element
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture});
+    var videoGeometry = new THREE.PlaneGeometry(width, height);
+    myTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture });
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
 
-    people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject   });
+    people.push({ "object": myAvatarObj, "texture": myTexture, "id": id, "videoObject": videoObject });
     positionEveryoneOnACircle();
 }
 
@@ -81,17 +78,19 @@ function draw() {
         }
     }
 
+    //draw the video
+    clear();
     image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
     //bouncing ball logic to show off canvas with bouncing text.
-    for(var i = 0; i< words.length; i++){
+    for (var i = 0; i < words.length; i++) {
         let wordInfo = words[i];
-        wordInfo.x += wordInfo.ySpeed;
-        if (wordInfo.x > width ||  wordInfo.x < 0 ) wordInfo.xSpeed= -wordInfo.xSpeed
-         wordInfo.y  += wordInfo.xSpeed;
-         if (wordInfo.y > height || wordInfo.y < 0 ) wordInfo.ySpeed= -wordInfo.ySpeed
-        textSize(14);
+        wordInfo.x += wordInfo.xSpeed;
+        if (wordInfo.x > width || wordInfo.x < 0) wordInfo.xSpeed = -wordInfo.xSpeed
+        wordInfo.y += wordInfo.ySpeed;
+        if (wordInfo.y > height || wordInfo.y < 0) wordInfo.ySpeed = -wordInfo.ySpeed
+        textSize(32);
         fill(255)
-        text(wordInfo.word, wordInfo.x,  wordInfo.y);
+        text(wordInfo.word, wordInfo.x, wordInfo.y);
     }
 
 }
