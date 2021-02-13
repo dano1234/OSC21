@@ -69,22 +69,24 @@
             //move the red cube around based on rightWrist info coming  from posenet
             if (poses.length > 0) {
                 //find the right wrist locations from posenet
-                let x = ((640 - poses[0].pose.rightWrist.x) - 320);
-                let y = ((480 - poses[0].pose.rightWrist.y) - 240);
-                poseNetProxy.position.x = x;
-                poseNetProxy.position.y = y;
-                if (x < 0) {
-                  //  videoElement.pause();
-                  //  mySound.pause();
-                } else {
-                  //  videoElement.play();
-                  //  mySound.play();
 
+                //pan the camera depending on which hand you raise.
+                if (poses[0].pose.rightWrist.confidence > 0.1 && poses[0].pose.rightWrist.y < 500) {
+                    console.log("right");
+                    camera3D.rotation.y += 0.01;
+                } else if (poses[0].pose.leftWrist.confidence > 0.1 && poses[0].pose.leftWrist.y < 500) {
+                    console.log("left");
+                    camera3D.rotation.y -= 0.01;
                 }
+
+                let distBetweenEyes = dist(poses[0].pose.rightEar.x, poses[0].pose.rightEar.y, poses[0].pose.leftEar.x, poses[0].pose.leftEar.y);
+                let cameraZDistance = map(distBetweenEyes, 0, video.width, 700, -700);
+
+
+                camera3D.position.z = cameraZDistance;
+
             }
-            if (videoTexture) {
-                //videoTexture.needsUpdate =true;  /not necessary for some reason
-            }
+
             renderer.render(scene, camera3D);
         };
 
@@ -94,18 +96,22 @@
             setupPoseNet();
         }
 
+        function mousePressed() {
+            if (mySound.isPlaying) {
+                mySound.pause();
+            } else {
+                mySound.play();
+            }
+        }
+
         //like setup
         function init() {
             container = document.getElementById('container');
             console.log("initializing three.js")
             basic3DStuff()
-            // checkVRStuff();
-            // addSomeCubes();
-            //createPanoramicBackgroundInThreeJS();
-            createPanoBG("ruin.jpg");
-            //allow mouse to control camera using pano_mouse.js file
             activatePanoControl(camera3D); //field mouse dragggin to move camera
             mySound = createSoundObject("ShakeOff.mp3");
+            poseNetProxy.add(mySound);
 
         }
 
@@ -119,18 +125,16 @@
             audioLoader.load(filename, function (buffer) {
                 sound1.setBuffer(buffer);
                 sound1.setRefDistance(20);
-               // sound1.play();
+                sound1.play();
+                console.log("play");
             });
             return sound1;
         }
+
         function setupPoseNet() {
             console.log("Start Up PoseNet")
             //This makes a primitive cube to be a proxy for a point from Posenet
-            var geometry = new THREE.BoxGeometry(2, 2, 2);
-            var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            poseNetProxy = new THREE.Mesh(geometry, material);
-            scene.add(poseNetProxy);
-            poseNetProxy.position.z = 100;
+
 
             var params = {
                 imageScaleFactor: 0.6,
@@ -158,40 +162,15 @@
             poseNet.on('pose', function (results) {
                 poses = results;
                 // console.log(poses);
-                if (poses.length > 0) {
-                    //this is the callback for PoseNet but we are polling results in animate loop
-                }
+                //these get used in draw
             });
             // Hide the video element, and just show the canvas
             video.hide();
-            poseNetProxy.add(mySound);
-        }
-
-
-
-        function createPanoBG(filename) {
-            let bgGeometery = new THREE.SphereGeometry(1000, 60, 40);
-            // let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
-            bgGeometery.scale(-1, 1, 1);
-            // has to be power of 2 like (4096 x 2048) or(8192x4096).  i think it goes upside down because texture is not right size
-            let panotexture = new THREE.TextureLoader().load(filename);
-            // var material = new THREE.MeshBasicMaterial({ map: panotexture, transparent: true,   alphaTest: 0.02,opacity: 0.3});
-            let backMaterial = new THREE.MeshBasicMaterial({ map: panotexture });
-
-            let back = new THREE.Mesh(bgGeometery, backMaterial);
-            scene.add(back);
 
         }
-        function createPanoramicBackgroundInThreeJS() {
-            //create a sphere to put the panoramic image (can be video) on it
-            var geometry = new THREE.SphereGeometry(500, 60, 40);
-            geometry.scale(-1, 1, 1);
-            var material = new THREE.MeshBasicMaterial({
-                map: new THREE.TextureLoader().load('ruin.jpg')
-            });
-            var mesh = new THREE.Mesh(geometry, material);
-            scene.add(mesh);
-        }
+
+
+
 
         function basic3DStuff() {
             console.log("adding 3D stuff")
@@ -200,8 +179,7 @@
             camera3D = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            camera3D.position.z = 350;
-
+            camera3D.position.z = 0;
             // document.body.appendChild(renderer.domElement);
             //this puts the three.js stuff in a particular div
             document.getElementById('container').appendChild(renderer.domElement);
@@ -214,6 +192,14 @@
             var light = new THREE.DirectionalLight(0xffffff, 0.75);
             light.position.set(1, 0.75, 0.5);
             scene.add(light);
+
+
+            var geometry = new THREE.BoxGeometry(20, 20, 20);
+            var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            poseNetProxy = new THREE.Mesh(geometry, material);
+            scene.add(poseNetProxy);
+            poseNetProxy.position.z = 0;
+
 
         }
 
