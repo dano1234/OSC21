@@ -5,6 +5,7 @@ let people = {};  //make it an associatvie array with each person labeled by net
 let p5lm 
 
 function setup() {
+    console.log("setup");
     myCanvas = createCanvas(512, 512);
     myCanvas.hide();
     //let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
