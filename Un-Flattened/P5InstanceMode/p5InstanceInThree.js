@@ -64,7 +64,6 @@ function createP5Instance(which) {
 
     const posInWorld = new THREE.Vector3();
     //remember we attached a tiny to the  front of the camera in init, now we are asking for its position
-
     in_front_of_you.position.set(0,0,-(700-camera3D.fov*5));  //base the the z position on camera field of view
     in_front_of_you.getWorldPosition(posInWorld);
     plane.position.x = posInWorld.x;

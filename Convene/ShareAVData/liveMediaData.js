@@ -5,6 +5,7 @@ let people = {};  //make it an associatvie array with each person labeled by net
 let p5lm 
 
 function setup() {
+    console.log("setup");
     myCanvas = createCanvas(512, 512);
     myCanvas.hide();
     //let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
@@ -83,7 +84,7 @@ function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
     //remember a bunch of things about each connection in json but we are really only using texture in draw
     //use an named or associate array where each oject is labeled with an ID
-    people[id] = { "object": myAvatarObj, "texture": myTexture, "id": id, "videoObject": videoObject, "angleOnCircle": angleOnCircle };
+    people.[id] = { "object": myAvatarObj, "texture": myTexture, "id": id, "videoObject": videoObject, "angleOnCircle": angleOnCircle };
 
 }
 
