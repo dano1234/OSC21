@@ -80,14 +80,15 @@ function searchPoly(keywords) {
 
         if (assets) {
             //for ( var i = 0; i < assets.length; i ++ ) {  //POLY GIVES MORE THAN ONE CHOICE
-            var asset = assets[0];
-            var format = asset.formats.find(format => { return format.formatType === 'OBJ'; });
-            if (format === undefined) {
+            var asset = assets[0];  //for now just pick the first one
+            console.log(asset);
+            var OBJFormat = asset.formats.find(format => { return format.formatType === 'OBJ'; });
+            if (OBJFormat === undefined) {
                 console.log("no OBJ option");
             } else {
-                console.log("chosen assets", format);
-                var obj = format.root;
-                var mtl = format.resources.find(resource => { return resource.url.endsWith('mtl') });
+                console.log("chosen OBJ assets", OBJFormat );
+                var obj = OBJFormat.root;
+                var mtl = OBJFormat .resources.find(resource => { return resource.url.endsWith('mtl') });
                 mtl = mtl.relativePath;
                 var path = obj.url.slice(0, obj.url.indexOf(obj.relativePath));
                 obj = obj.relativePath;

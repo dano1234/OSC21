@@ -38,7 +38,7 @@ function gotStream(videoObject, id) {
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
 
-    stream.hide();
+    videoObject.hide();
     creatNewVideoObject(videoObject, id);
 }
 

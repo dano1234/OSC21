@@ -40,7 +40,8 @@ function askForLatLong(query) {
     console.log("asking");
     //var query = $("#place").val();
     var api_key = "AIzaSyBi_F0gaMWtXi8Ngerunlwe1vRFkjy8cdI";
-    ///work around  CORS Exception with proxy from herokuap  https://cors-anywhere.herokuapp.com/
+    ///work around  CORS Exception with proxy from herokuap, add this front of url https://cors-anywhere.herokuapp.com/
+    //sometimes you have get permissions to to it  https://cors-anywhere.herokuapp.com/corsdemo
     var url = "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api/geocode/json?address=" + query + "&key=" + api_key;
     console.log(url);
     $("#loading_feedback").html("...Loading");
