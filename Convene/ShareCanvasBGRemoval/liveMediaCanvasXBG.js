@@ -3,7 +3,7 @@ let camera3D, scene, renderer
 let myCanvas, myVideo, myMask;
 let people = [];
 let myRoomName = "mycrazyCanvas_BGRemoval_RoomName";   //make a different room from classmates
-let  p5lm ;
+let p5lm;
 
 
 let myName = prompt("name?");
@@ -12,7 +12,7 @@ function setup() {
     //  document.body.append(myCanvas.elt);
     myCanvas.hide();
 
-    myMask = createGraphics(width,height); //this is for the setting the alpha layer for me.
+    myMask = createGraphics(width, height); //this is for the setting the alpha layer for me.
 
     //let captureConstraints = allowCameraSelection(myCanvas.width, myCanvas.height);
     //myVideo = createCapture(captureConstraints);
@@ -20,7 +20,6 @@ function setup() {
     //below is simpler if you don't need to select Camera because default is okay
     myVideo = createCapture(VIDEO);
     myVideo.size(myCanvas.width, myCanvas.height);
-    
     myVideo.elt.muted = true;
     myVideo.hide()
 
@@ -39,33 +38,36 @@ function gotStream(videoObject, id) {
     //don't want the dom object, will use in p5 and three.js instead
     //get a network id from each person who joins
 
-   // stream.hide();
+    videoObject.hide();
     creatNewVideoObject(videoObject, id);
 }
 
 function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
-    var videoGeometry = new THREE.PlaneGeometry(width,height);
+    var videoGeometry = new THREE.PlaneGeometry(width, height);
 
     //usually you can just feed the videoObject to the texture.  We added an extra graphics stage to remove background
-    let extraGraphicsStage = createGraphics(width,height)
+    let extraGraphicsStage = createGraphics(width, height)
     let myTexture;
-    if (id == "me"){
-        myTexture = new THREE.Texture(videoObject.elt );  //NOTICE THE .elt  this give the element
-    }else{
-        myTexture = new THREE.Texture(extraGraphicsStage.elt );  //NOTICE THE .elt  this give the element
+    if (id == "me") {
+        myTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
+    } else {
+        myTexture = new THREE.Texture(extraGraphicsStage.elt);  //NOTICE THE .elt  this give the element
     }
 
-    //opacity: 1
-    
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture , transparent: true});
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: myTexture, transparent: true });
+    //NEED HELP FIGURING THIS OUT. There has to be a way to remove background without the pixel by pixel loop currently in draw
+    //instead should be able to use custom blending to do this in the GPU
+    //https://threejs.org/docs/#api/en/constants/CustomBlendingEquations
     videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of power of 2 errors
     myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
 
     scene.add(myAvatarObj);
 
-    people.push({ "object": myAvatarObj, "texture":  myTexture, "id": id, "videoObject": videoObject , "extraGraphicsStage": extraGraphicsStage  });
+    people.push({ "object": myAvatarObj, "texture": myTexture, "id": id, "videoObject": videoObject, "extraGraphicsStage": extraGraphicsStage });
     positionEveryoneOnACircle();
+
+
 }
 
 function draw() {
@@ -76,14 +78,14 @@ function draw() {
             people[i].texture.needsUpdate = true;
         } else if (people[i].videoObject.elt.readyState == people[i].videoObject.elt.HAVE_ENOUGH_DATA) {
             //remove background that became black and not transparent  in transmission
-            people[i].extraGraphicsStage.image(people[i].videoObject,0,0);
+            people[i].extraGraphicsStage.image(people[i].videoObject, 0, 0);
             people[i].extraGraphicsStage.loadPixels();
-            for(var j = 0; j < people[i].extraGraphicsStage.pixels.length; j+=4){
+            for (var j = 0; j < people[i].extraGraphicsStage.pixels.length; j += 4) {
                 let r = people[i].extraGraphicsStage.pixels[j];
-                let g = people[i].extraGraphicsStage.pixels[j+1];
-                let b = people[i].extraGraphicsStage.pixels[j+2];
-                if(r+g+b < 10){
-                    people[i].extraGraphicsStage.pixels[j+3] = 0;
+                let g = people[i].extraGraphicsStage.pixels[j + 1];
+                let b = people[i].extraGraphicsStage.pixels[j + 2];
+                if (r + g + b < 10) {
+                    people[i].extraGraphicsStage.pixels[j + 3] = 0;
                 }
             }
             people[i].extraGraphicsStage.updatePixels();
@@ -98,7 +100,7 @@ function draw() {
     myMask.clear()//clear the mask
     myMask.fill(255, 255, 255, 255);//set alpha of mask
     myMask.noStroke();
-    myMask.ellipse(width/2, height/2, 300, 300)//draw a circle of alpha
+    myMask.ellipse(width / 2, height / 2, 300, 300)//draw a circle of alpha
     myVideo.mask(myMask);//use alpha of mask to clip the vido
 
     //clear();//for making background transparent on the main picture
