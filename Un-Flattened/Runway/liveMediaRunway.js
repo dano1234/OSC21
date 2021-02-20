@@ -35,7 +35,7 @@ function setup() {
 }
 
 function talkToRunway() {
-    const path = 'http://localhost:8001/data';
+    const path = 'http://localhost:8000/data';
     //console.log("askit");
     httpGet(path, 'json', false, gotImage, gotError);
 }

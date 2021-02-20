@@ -1,6 +1,6 @@
 
 let camera3D, scene, renderer, cube;
-let p5s = [];
+let texts = [];
 let  in_front_of_you;
 
 
@@ -12,7 +12,10 @@ function init3D() {
 
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    ///document.body.appendChild(renderer.domElement);
+
+//this puts the three.js stuff in a particular div
+document.getElementById('container').appendChild(renderer.domElement)
 
 
     let bgGeometery = new THREE.SphereGeometry(1000, 60, 40);
@@ -44,46 +47,57 @@ function init3D() {
 
 function animate() {
     requestAnimationFrame(animate);
-    for (var i = 0; i < p5s.length; i++){
-        p5s[i].texture.needsUpdate = true;
+    for (var i = 0; i < texts.length; i++){
+        texts[i].texture.needsUpdate = true;
     }
     renderer.render(scene, camera3D);
 }
 
+var textInput = document.getElementById("text");  //get a hold of something in the DOM
+    textInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {  //checks whether the pressed key is "Enter"
+        createNewText(textInput.value);
+        }
+    });
 
-
-function createP5Instance(which) {
-    let sketchInstance = new p5(which);  //this name is in your sketch
-
-    let geo = new THREE.PlaneGeometry(512, 512);
-    let p5Texture = new THREE.Texture(sketchInstance.getP5Canvas());  // pull the canvas out of the p5 sketch
-    let mat = new THREE.MeshBasicMaterial({ map: p5Texture, transparent: true, opacity: 1, side: THREE.DoubleSide });
-
-    let plane = new THREE.Mesh(geo, mat);
-    scene.add(plane);
+function createNewText(text_msg) {
+    console.log("Created New Text");
+    var canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    var context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    var fontSize = Math.max(camera3D.fov / 2, 72);
+    context.font = fontSize + "pt Arial";
+    context.textAlign = "center";
+    context.fillStyle = "white";
+    context.fillText(text_msg, canvas.width / 2, canvas.height / 2);
+    var textTexture = new THREE.Texture(canvas);
+    textTexture.needsUpdate = true;
+    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent:false });
+    var geo = new THREE.PlaneGeometry(1, 1);
+    var mesh = new THREE.Mesh(geo, material);
 
     const posInWorld = new THREE.Vector3();
     //remember we attached a tiny to the  front of the camera in init, now we are asking for its position
 
-    in_front_of_you.position.set(0,0,-(700-camera3D.fov*5));  //base the the z position on camera field of view
+    in_front_of_you.position.set(0,0,-(600-camera3D.fov*7));  //base the the z position on camera field of view
     in_front_of_you.getWorldPosition(posInWorld);
-    plane.position.x = posInWorld.x;
-    plane.position.y = posInWorld.y;
-    plane.position.z = posInWorld.z;
+    mesh.position.x = posInWorld.x;
+    mesh.position.y = posInWorld.y;
+    mesh.position.z = posInWorld.z;
     console.log(posInWorld);
-    plane.lookAt(0,0,0);
-    p5s.push({"object": plane, "texture":p5Texture, "p5SketchInstance":sketchInstance});
-
-    console.log("textured a plane")
-    //plane.scale.set(1, 1, 1);
+    mesh.lookAt(0,0,0);
+    mesh.scale.set(10,10, 10);
+    scene.add(mesh);
+    texts.push({"object":mesh, "texture":textTexture, "text":text_msg});
 }
 
 function onDocumentKeyDown(event) {
-    console.log(event.key);
-    if (event.key == " ") {
-        createP5Instance(particleSystemSketch) 
-      
-    }
+    //console.log(event.key);
+   // if (event.key == " ") {
+   //     
+   // }
 }
 
 
@@ -98,7 +112,7 @@ var isUserInteracting = false;
 
 
 function moveCameraWithMouse() {
-    document.addEventListener('keydown', onDocumentKeyDown, false);
+    //document.addEventListener('keydown', onDocumentKeyDown, false);
     document.addEventListener('mousedown', onDocumentMouseDown, false);
     document.addEventListener('mousemove', onDocumentMouseMove, false);
     document.addEventListener('mouseup', onDocumentMouseUp, false);
