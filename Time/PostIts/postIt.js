@@ -2,10 +2,43 @@
 let camera3D, scene, renderer, cube;
 let texts = [];
 let hitTestableOjects = [];
-let  in_front_of_you;
+let in_front_of_you;
 let currentObject;
 
+let group_id = "mySillyRoomName";
+let db;
 
+
+function connectToFirebase() {
+    var config = {
+        apiKey: "AIzaSyAbJCseU4PrkYSQBdM3NRqWg0UGvb-Fpj4",
+        authDomain: "osc-itp-1553359662966.firebaseapp.com",
+        databaseURL: "https://osc-itp-1553359662966.firebaseio.com/",
+        storageBucket: "gs://osc-itp-1553359662966.appspot.com"
+    };
+    firebase.initializeApp(config);
+
+    db = firebase.database();
+
+    var myRef = db.ref('group/' + group_id + '/notes/');
+    myRef.on('child_added', (data) => {
+        console.log('child_added', data.key, data.val());
+        let key = data.key;
+        let thing = data.val();
+        createNewText(thing.content, thing.location, key)
+    });
+
+    myRef.on('child_changed', (data) => {
+        console.log('child_changed', data.key, data.val());
+
+    });
+
+    myRef.on('child_removed', (data) => {
+        console.log('child_removed', data.key);
+    });
+}
+
+connectToFirebase();
 init3D();
 
 function init3D() {
@@ -39,57 +72,67 @@ function init3D() {
     in_front_of_you.position.set(0, 0, -600);
 
     //convenience function for getting coordinates
-    
+
     moveCameraWithMouse();
 
     camera3D.position.z = 0;
     animate();
 }
 
-function hitTest() {  //called from onDocumentMouseDown()
-    var mouse = { x: 0, y: 0 };
+function hitTest(x, y) {  //called from onDocumentMouseDown()
+    var mouse = { "x": 0, "y": 0 };
     var raycaster = new THREE.Raycaster(); // create once
     //var mouse = new THREE.Vector2(); // create once
-    mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
-    mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
-    raycaster.setFromCamera(    mouse, camera3D);
+    mouse.x = (x / renderer.domElement.clientWidth) * 2 - 1;
+    mouse.y = - (y / renderer.domElement.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera3D);
     var intersects = raycaster.intersectObjects(hitTestableOjects, false);
     // if there is one (or more) intersections
     let currentObj = null;
     if (intersects.length > 0) {
-        let hitObjID = intersects[0].object.uuid; //first object
-        for(var i = 0; i < notes.length; i++){
-            if (notes[i].Threeid == hitObjID){
-                currentObj = notes[i];
-                $("#text").innerHTML = notes[i].text;
+        let hitObjID = intersects[0].object.uuid; //closest object
+        for (var i = 0; i < texts.length; i++) {
+            ;
+            if (texts[i].Threeid == hitObjID) {
+                currentObj = texts[i];
+                $("#text").val(texts[i].text);
+
+                $("#text").css({ position: "absolute", left: x, top: y });
                 //do some hightlighting and put text in input box.
                 break;
             }
         }
     }
+    console.log(currentObj);
+
 }
 
 function animate() {
     requestAnimationFrame(animate);
-    for (var i = 0; i < texts.length; i++){
+    for (var i = 0; i < texts.length; i++) {
         texts[i].texture.needsUpdate = true;
     }
     renderer.render(scene, camera3D);
 }
 
 var textInput = document.getElementById("text");  //get a hold of something in the DOM
-    textInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {  //checks whether the pressed key is "Enter"
-         if (currentObject){ //hit test returned somethigng
-            updateText(textInput.value,currentNote);
-         }else{
+textInput.addEventListener("mousedown", function (e) {
+    e.stopImmediatePropagation();
+    //don't let it go to the elements under the text box
+});
+textInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {  //checks whether the pressed key is "Enter"
+        if (currentObject) { //hit test returned somethigng
+            updateText(textInput.value, currentNote);
+        } else {
             createNewText(textInput.value);
-         }
-     
         }
-    });
 
-function createNewText(text_msg) {
+    }
+});
+
+
+function createNewText(text_msg, location,key) {
     console.log("Created New Text");
     var canvas = document.createElement("canvas");
     canvas.width = 512;
@@ -103,42 +146,48 @@ function createNewText(text_msg) {
     context.fillText(text_msg, canvas.width / 2, canvas.height / 2);
     var textTexture = new THREE.Texture(canvas);
     textTexture.needsUpdate = true;
-    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent:false });
+    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent: false });
     var geo = new THREE.PlaneGeometry(1, 1);
     var mesh = new THREE.Mesh(geo, material);
+    let DBid = key; //will be null if it did not come in from databaase
+    if (location) { //came in from database
+        mesh.position.x = location.x;
+        mesh.position.y = location.y;
+        mesh.position.z = location.z;
+    } else { //local and needs location and to be put in the database
+        const posInWorld = new THREE.Vector3();
+        //remember we attached a tiny to the  front of the camera in init, now we are asking for its position
+        in_front_of_you.position.set(0, 0, -(600 - camera3D.fov * 7));  //base the the z position on camera field of view
+        in_front_of_you.getWorldPosition(posInWorld);
+        mesh.position.x = posInWorld.x;
+        mesh.position.y = posInWorld.y;
+        mesh.position.z = posInWorld.z;
+        //add it to firebase database
+        let location = { "x": mesh.position.x, "y": mesh.position.y, "z": mesh.position.z, "xrot": mesh.rotation.x, "yrot": mesh.rotation.y, "zrot": mesh.rotation.z }
+        let mydata = {
+            'location': location,
+            'content': text_msg
+        };
+        //insert in the database
+        let returnInfo = db.ref('group/' + group_id + '/notes/').push(mydata);
+        //get the id that the database uses so you can update it later
+        DBid = returnInfo.key;
+    }
+    // console.log(posInWorld);
+    mesh.lookAt(0, 0, 0);
 
-    const posInWorld = new THREE.Vector3();
-    //remember we attached a tiny to the  front of the camera in init, now we are asking for its position
-
-    in_front_of_you.position.set(0,0,-(600-camera3D.fov*7));  //base the the z position on camera field of view
-    in_front_of_you.getWorldPosition(posInWorld);
-    mesh.position.x = posInWorld.x;
-    mesh.position.y = posInWorld.y;
-    mesh.position.z = posInWorld.z;
-
-    console.log(posInWorld);
-    mesh.lookAt(0,0,0);
-
-    mesh.scale.set(10,10, 10);
+    mesh.scale.set(10, 10, 10);
     scene.add(mesh);
-    //add it to firebase database
-    let location = { "x": mesh.position.x, "y": mesh.position.y, "z": mesh.position.z, "xrot": mesh.rotation.x, "yrot": mesh.rotation.y, "zrot": mesh.rotation.z }
-
-    let mydata = {
-        'location': location,
-        'content': text_msg
-    };
-    let returnInfo = db.ref('group/' + group_id + '/notes/').push(mydata);
-    let DBid = returnInfo.key;
-     texts.push({"object":mesh, "canvas" : canvas, "location": "texture":textTexture, "text":text_msg, "3Did":mesh.uuid, "DBid":DBid, "location":location});
-     hitTestableOjects.push(mesh);
+    //two id's one for Three and one for the database
+    texts.push({ "object": mesh, "canvas": canvas, "location": location, "texture": textTexture, "text": text_msg, "Threeid": mesh.uuid, "DBid": DBid, "location": location });
+    hitTestableOjects.push(mesh);
 }
 
-function updateText(text, note){
+function updateText(text, note) {
     note.text = text;
     var context = note.canvas.getContext("2d");
     context.clearRect(0, 0, canvas.width, canvas.height);
-    var fontSize = Math.max(camera3D.fov / 2, 72);
+    var fontSize = 72; //Math.max(camera3D.fov / 2, 72);
     context.font = fontSize + "pt Arial";
     context.textAlign = "center";
     context.fillStyle = "white";
@@ -147,15 +196,15 @@ function updateText(text, note){
         'location': note.location,
         'content': note.text
     };
-    db.ref('group/' + group_id + '/notes/' + current_note.DBid).update(mydata);
+    db.ref('group/' + group_id + '/notes/' + note.DBid).update(mydata);
 
 }
 
 function onDocumentKeyDown(event) {
     //console.log(event.key);
-   // if (event.key == " ") {
-   //     
-   // }
+    // if (event.key == " ") {
+    //     
+    // }
 }
 
 
@@ -181,7 +230,7 @@ function moveCameraWithMouse() {
 
 
 function onDocumentMouseDown(event) {
-    hitTest();
+    hitTest(event.clientX, event.clientY);
     onPointerDownPointerX = event.clientX;
     onPointerDownPointerY = event.clientY;
     onPointerDownLon = lon;
