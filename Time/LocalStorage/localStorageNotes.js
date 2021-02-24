@@ -6,40 +6,101 @@ let in_front_of_you;
 let currentObject;
 let myTimer ;
 
-let group_id = "mySillyRoomName";
-let db;
 
+window.onload = (event) => {
+    let stored = localStorage.getItem("texts");
+    console.log(stored);
+    if(stored){
+        let incomingTexts = JSON.parse(stored);
+        console.log(incomingTexts);
+        for (var i = 0; i < incomingTexts.length; i++) {
+            createNewText(incomingTexts[i].text,incomingTexts[i].location)
+            console.log("new ", incomingTexts[i].text, incomingTexts[i].location);
+        }
+        
+    }
+  };
 
-function connectToFirebase() {
-    var config = {
-        apiKey: "AIzaSyAbJCseU4PrkYSQBdM3NRqWg0UGvb-Fpj4",
-        authDomain: "osc-itp-1553359662966.firebaseapp.com",
-        databaseURL: "https://osc-itp-1553359662966.firebaseio.com/",
-        storageBucket: "gs://osc-itp-1553359662966.appspot.com"
-    };
-    firebase.initializeApp(config);
-
-    db = firebase.database();
-
-    var myRef = db.ref('group/' + group_id + '/notes/');
-    myRef.on('child_added', (data) => {
-        console.log('child_added', data.key, data.val());
-        let key = data.key;
-        let thing = data.val();
-        createNewText(thing.content, thing.location, key)
-    });
-
-    myRef.on('child_changed', (data) => {
-        console.log('child_changed', data.key, data.val());
-
-    });
-
-    myRef.on('child_removed', (data) => {
-        console.log('child_removed', data.key);
-    });
+window.onbeforeunload = function () {
+    console.log("saved");
+    let ouput = JSON.stringify(texts);
+    localStorage.setItem("texts", ouput);
 }
 
-connectToFirebase();
+
+function createNewText(text_msg, location) {
+    console.log("Created New Text");
+    var canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    var context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    var fontSize = Math.max(camera3D.fov / 2, 72);
+    context.font = fontSize + "pt Arial";
+    context.textAlign = "center";
+    context.fillStyle = "white";
+    context.fillText(text_msg, canvas.width / 2, canvas.height / 2);
+    var textTexture = new THREE.Texture(canvas);
+    textTexture.needsUpdate = true;
+    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent: false });
+    var geo = new THREE.PlaneGeometry(1, 1);
+    var mesh = new THREE.Mesh(geo, material);
+    if (location) { //came in from database
+        mesh.position.x = location.x;
+        mesh.position.y = location.y;
+        mesh.position.z = location.z;
+    } else { //local and needs location and to be put in the database
+        const posInWorld = new THREE.Vector3();
+        //remember we attached a tiny to the  front of the camera in init, now we are asking for its position
+        in_front_of_you.position.set(0, 0, -(600 - camera3D.fov * 7));  //base the the z position on camera field of view
+        in_front_of_you.getWorldPosition(posInWorld);
+        mesh.position.x = posInWorld.x;
+        mesh.position.y = posInWorld.y;
+        mesh.position.z = posInWorld.z;
+        //add it to firebase database
+        location = { "x": mesh.position.x, "y": mesh.position.y, "z": mesh.position.z, "xrot": mesh.rotation.x, "yrot": mesh.rotation.y, "zrot": mesh.rotation.z }
+   
+    }
+    // console.log(posInWorld);
+    mesh.lookAt(0, 0, 0);
+
+    mesh.scale.set(10, 10, 10);
+    scene.add(mesh);
+    //two id's one for Three and one for the database
+    texts.push({ "object": mesh, "canvas": canvas, "location": location, "texture": textTexture, "text": text_msg, "Threeid": mesh.uuid,"location": location });
+    hitTestableOjects.push(mesh);
+}
+
+function updateText(text, note) {
+    note.text = text;
+    var context = note.canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    var fontSize = 72; //Math.max(camera3D.fov / 2, 72);
+    context.font = fontSize + "pt Arial";
+    context.textAlign = "center";
+    context.fillStyle = "white";
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+}
+
+function onDocumentKeyDown(e) {
+    clearTimeout(myTimer);
+    if (currentObject) {
+        if (e.key == "ArrowRight"){
+            console.log(e.key);
+            currentObject.object.position.x  =  currentObject.object.position.x  + 1;
+        }else if (e.key == "ArrowLeft"){
+            currentObject.object.position.x  =  currentObject.object.position.x  - 1;
+        }else if (e.key == "ArrowUp"){
+            currentObject.object.position.y  =  currentObject.object.position.y  - 1;
+        }else if (e.key == "ArrowDown"){
+            currentObject.object.position.y  =  currentObject.object.position.y  + 1;
+        }
+        currentObject.location = { "x": currentObject.object.position.x, "y": currentObject.object.position.y, "z": currentObject.object.position.z, "xrot": currentObject.object.rotation.x, "yrot": currentObject.object.rotation.y, "zrot": currentObject.object.rotation.z }
+    }
+
+}
+
+
 init3D();
 
 function init3D() {
@@ -93,7 +154,7 @@ function hitTest(x, y) {  //called from onDocumentMouseDown()
     if (intersects.length > 0) {
         let hitObjID = intersects[0].object.uuid; //closest object
         for (var i = 0; i < texts.length; i++) {
-            ;
+        
             if (texts[i].Threeid == hitObjID) {
                 currentObject = texts[i];
                 $("#text").val(texts[i].text);
@@ -121,6 +182,7 @@ textInput.addEventListener("mousedown", function (e) {
     e.stopImmediatePropagation();
     //don't let it go to the elements under the text box
 });
+
 textInput.addEventListener("keydown", function (e) {
     if (e.key === "Enter") {  //checks whether the pressed key is "Enter"
         if (currentObject) { //hit test returned somethigng
@@ -131,105 +193,6 @@ textInput.addEventListener("keydown", function (e) {
     }
 });
 
-
-function createNewText(text_msg, location,key) {
-    console.log("Created New Text");
-    var canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
-    var context = canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    var fontSize = Math.max(camera3D.fov / 2, 72);
-    context.font = fontSize + "pt Arial";
-    context.textAlign = "center";
-    context.fillStyle = "white";
-    context.fillText(text_msg, canvas.width / 2, canvas.height / 2);
-    var textTexture = new THREE.Texture(canvas);
-    textTexture.needsUpdate = true;
-    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent: false });
-    var geo = new THREE.PlaneGeometry(1, 1);
-    var mesh = new THREE.Mesh(geo, material);
-    let DBid = key; //will be null if it did not come in from databaase
-    if (location) { //came in from database
-        mesh.position.x = location.x;
-        mesh.position.y = location.y;
-        mesh.position.z = location.z;
-    } else { //local and needs location and to be put in the database
-        const posInWorld = new THREE.Vector3();
-        //remember we attached a tiny to the  front of the camera in init, now we are asking for its position
-        in_front_of_you.position.set(0, 0, -(600 - camera3D.fov * 7));  //base the the z position on camera field of view
-        in_front_of_you.getWorldPosition(posInWorld);
-        mesh.position.x = posInWorld.x;
-        mesh.position.y = posInWorld.y;
-        mesh.position.z = posInWorld.z;
-        //add it to firebase database
-        location = { "x": mesh.position.x, "y": mesh.position.y, "z": mesh.position.z, "xrot": mesh.rotation.x, "yrot": mesh.rotation.y, "zrot": mesh.rotation.z }
-        let mydata = {
-            'location': location,
-            'content': text_msg
-        };
-        //insert in the database
-        let returnInfo = db.ref('group/' + group_id + '/notes/').push(mydata);
-        //get the id that the database uses so you can update it later
-        DBid = returnInfo.key;
-    }
-    // console.log(posInWorld);
-    mesh.lookAt(0, 0, 0);
-
-    mesh.scale.set(10, 10, 10);
-    scene.add(mesh);
-    //two id's one for Three and one for the database
-    texts.push({ "object": mesh, "canvas": canvas, "location": location, "texture": textTexture, "text": text_msg, "Threeid": mesh.uuid, "DBid": DBid, "location": location });
-    hitTestableOjects.push(mesh);
-}
-
-function updateText(text, note) {
-    note.text = text;
-    var context = note.canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    var fontSize = 72; //Math.max(camera3D.fov / 2, 72);
-    context.font = fontSize + "pt Arial";
-    context.textAlign = "center";
-    context.fillStyle = "white";
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-    let mydata = {
-        'location': note.location,
-        'content': note.text
-    };
-    db.ref('group/' + group_id + '/notes/' + note.DBid).update(mydata);
-
-}
-
-function onDocumentKeyDown(e) {
-    clearTimeout(myTimer);
-    if (currentObject) {
-        if (e.key == "ArrowRight"){
-            console.log(e.key);
-            currentObject.object.position.x  =  currentObject.object.position.x  + 1;
-        }else if (e.key == "ArrowLeft"){
-            currentObject.object.position.x  =  currentObject.object.position.x  - 1;
-        }else if (e.key == "ArrowUp"){
-            currentObject.object.position.y  =  currentObject.object.position.y  - 1;
-        }else if (e.key == "ArrowDown"){
-            currentObject.object.position.y  =  currentObject.object.position.y  + 1;
-        }
-        currentObject.location = { "x": currentObject.object.position.x, "y": currentObject.object.position.y, "z": currentObject.object.position.z, "xrot": currentObject.object.rotation.x, "yrot": currentObject.object.rotation.y, "zrot": currentObject.object.rotation.z }
-
-        myTimer = setTimeout(function(){ 
-                       let mydata = {
-                'location': currentObject.location,
-                'content': currentObject.text
-            };
-            console.log("sending");
-            db.ref('group/' + group_id + '/notes/' + currentObject.DBid).update(mydata);
-            
-         }, 3000);
-    }
-    //console.log(event.key);
-    // if (event.key == " ") {
-    //     
-    // }
-}
 
 
 
