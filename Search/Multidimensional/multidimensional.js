@@ -3,6 +3,8 @@ let camera3D, scene, renderer
 let myCanvas, myVideo;
 let people = {};  //make it an associatvie array with each person labeled by network id
 let p5lm 
+let samplePoints = [];
+let myRoomName = "multidimensionalRooom";
 
 function setup() {
     console.log("setup");
@@ -11,16 +13,85 @@ function setup() {
     //let captureConstraints =  allowCameraSelection(myCanvas.width,myCanvas.height) ;
     //myVideo = createCapture(captureConstraints, videoLoaded);
     //below is simpler if you don't need to select Camera because default is okay
-    myVideo = createCapture(VIDEO, videoLoaded);
+
+    myVideo = createCapture(VIDEO);
     myVideo.size(myCanvas.width, myCanvas.height);
     myVideo.elt.muted = true;
     myVideo.hide()
+
+
+    p5lm = new p5LiveMedia(this, "CANVAS", myCanvas, myRoomName)
+    p5lm.on('stream', gotStream);
+    p5lm.on('data', gotData);
+    p5lm.on('disconnect', gotDisconnect);
 
     init3D();
 
     //create the local thing
     creatNewVideoObject(myVideo, "me");
+    createSamplePoint(0);
+    createSamplePoint(180);
 }
+
+function createSamplePoint(angle){
+    var canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    var context = canvas.getContext("2d");
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height); //make it blank
+    var textTexture = new THREE.Texture(canvas);
+    textTexture.needsUpdate = true;
+    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent:false });
+    var geo = new THREE.PlaneGeometry(512, 512);
+    var mesh = new THREE.Mesh(geo, material);
+    scene.add(mesh);
+    positionOnCircle(angle,mesh);
+    samplePoints.push({"object":mesh, "texture":textTexture, "canvas":canvas});
+}
+
+
+
+var point1 = document.getElementById("point1");
+point1.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+    talkToRunway(point1.value,1);
+    }
+});
+
+var point2  = document.getElementById("point2");
+point2.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+    talkToRunway(point2.value,2);
+    }
+});
+
+function talkToRunway(query,forWhich) {
+    const path = 'http://localhost:8000/query';
+    console.log("askit");
+    const data = {
+      "caption": query
+    };
+    var whoIsAsking = forWhich;
+    httpPost(path, 'json', data, gotImageFromRunway, gotError);
+  }
+  
+  function gotError(error) {
+    console.error(  error);
+  }
+  
+  function gotImageFromRunway(data) {
+    console(whoIsAsking);
+    console.log("Got Image Data", data.result);
+    let runway_img= createImg(data.result,"image generated in runway");
+  
+   // let graphics = createGraphics(width,height);
+   // graphics.image(runway_img,0,0);
+   // placeImage(graphics.elt);
+   // runway_img.hide();
+  }
+  
+
 
 ///move people around and tell them about 
 function keyPressed() {
@@ -44,12 +115,7 @@ function keyPressed() {
 
 }
 
-function videoLoaded(stream) {
-    p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
-    p5lm.on('stream', gotStream);
-    p5lm.on('data', gotData);
-    p5lm.on('disconnect', gotDisconnect);
-}
+
 
 function gotData(data, id) {
     // If it is JSON, parse it
@@ -112,6 +178,10 @@ function draw() {
             thisPerson.texture.needsUpdate = true;
         }
     }
+    //this is what gets sent to other people;
+    clear();
+    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
+
 }
 
 function init3D() {
