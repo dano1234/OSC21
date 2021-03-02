@@ -2,9 +2,12 @@
 let camera3D, scene, renderer
 let myCanvas, myVideo;
 let people = {};  //make it an associatvie array with each person labeled by network id
-let p5lm 
+let p5lm
 let samplePoints = [];
 let myRoomName = "multidimensionalRooom";
+let model;
+let settlingInterval;
+
 
 function setup() {
     console.log("setup");
@@ -29,85 +32,117 @@ function setup() {
 
     //create the local thing
     creatNewVideoObject(myVideo, "me");
-    createSamplePoint(0);
-    createSamplePoint(180);
+
+
+    model = new rw.HostedModel({
+        url: "https://stylegan2-7694fe98.hosted-models.runwayml.cloud/v1/",
+        token: "g/YBslj6S5eCne661wNO2Q=="
+    });
+
+    let rv = createRandomVector();
+    talkToRunway("samplePoint", rv, 0);
+    rv = createRandomVector();
+    talkToRunway("samplePoint", rv, 180);
 }
 
-function createSamplePoint(angle){
-    var canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
-    var context = canvas.getContext("2d");
-    context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height); //make it blank
-    var textTexture = new THREE.Texture(canvas);
-    textTexture.needsUpdate = true;
-    var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent:false });
-    var geo = new THREE.PlaneGeometry(512, 512);
-    var mesh = new THREE.Mesh(geo, material);
-    scene.add(mesh);
-    positionOnCircle(angle,mesh);
-    samplePoints.push({"object":mesh, "texture":textTexture, "canvas":canvas});
-}
-
-
-
-var point1 = document.getElementById("point1");
-point1.addEventListener("keydown", function (e) {
-    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
-    talkToRunway(point1.value,1);
-    }
-});
-
-var point2  = document.getElementById("point2");
-point2.addEventListener("keydown", function (e) {
-    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
-    talkToRunway(point2.value,2);
-    }
-});
-
-function talkToRunway(query,forWhich) {
+function talkToRunway(reason, vector, angle) {
     const path = 'http://localhost:8000/query';
     console.log("askit");
     const data = {
-      "caption": query
+        z: vector,
+        truncation: 0.7
     };
-    var whoIsAsking = forWhich;
-    httpPost(path, 'json', data, gotImageFromRunway, gotError);
-  }
-  
-  function gotError(error) {
-    console.error(  error);
-  }
-  
-  function gotImageFromRunway(data) {
-    console(whoIsAsking);
-    console.log("Got Image Data", data.result);
-    let runway_img= createImg(data.result,"image generated in runway");
-  
-   // let graphics = createGraphics(width,height);
-   // graphics.image(runway_img,0,0);
-   // placeImage(graphics.elt);
-   // runway_img.hide();
-  }
-  
+    model.query(data).then(outputs => {
+        const { image } = outputs;
+        // use the outputs in your project
+        // console.log("Got Image Data", image);
+        let runway_img = createImg(image,
+            function () {  //this function gets called when it is finished being created
+                let graphics = createGraphics(512, 512);
+                graphics.image(runway_img, 0, 0,512,512);
+                runway_img.hide();
+                if (reason == "samplePoint"){
+                    createSamplePicture(vector, angle, graphics.elt);
+                }else{
+
+                }
+            }
+        );
+    });
+
+    /*  httpPost(path, 'json', data, 
+      function(data){
+          console.log("Got Image Data", data.result);
+          let runway_img= createImg(data.result,"image generated in runway");
+          runway_img.hide();
+          createSamplePicture(vector, angle, runway_img);
+      }, 
+      function(){ 
+          onsole.log("error")
+        });
+      */
+}
+
+
+
+
+function createSamplePicture(vector, angle, canvas) {
+    var myTexture = new THREE.Texture(canvas);
+    var material = new THREE.MeshBasicMaterial({ map: myTexture, transparent: false });
+    var geo = new THREE.PlaneGeometry(512, 512);
+    var mesh = new THREE.Mesh(geo, material);
+    scene.add(mesh);
+    angle = THREE.Math.degToRad(angle);
+    positionOnCircle(angle, mesh);
+    myTexture.needsUpdate = true;
+    samplePoints.push({ "object": mesh, "texture": myTexture, "canvas": canvas, "vector": vector });
+}
+
+function createRandomVector() {
+    const vector = [];
+    for (let i = 0; i < 512; i++) {
+        vector[i] = random(-1, 1);
+    }
+    return vector;
+}
+
+
+
+var startVectorBox = document.getElementById("startVector");
+startVectorBox.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+        talkToRunway(startVectorBox.value, 1);
+    }
+});
+
+var endVectorBox = document.getElementById("endVector");
+endVectorBox.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+        talkToRunway(endVectorBox.value, 2);
+    }
+});
+
+
+
 
 
 ///move people around and tell them about 
 function keyPressed() {
+    clearTimeouts(settlingInterval);
     let me = people["me"];
     if (keyCode == 37 || key == "a") {
         me.angleOnCircle -= .01;
 
     } else if (keyCode == 39 || key == "d") {
         me.angleOnCircle += .01;
-    
+
 
     } else if (keyCode == 38 || key == "w") {
 
     } else if (keyCode == 40 || key == "s") {
 
     }
+    settlingInterval = setTimeout(getSelfFromRunway talkToRunway, 3000);
     positionOnCircle(me.angleOnCircle, me.object); //change it locally 
     //send it to others
     let dataToSend = { "angleOnCircle": me.angleOnCircle };
@@ -157,9 +192,9 @@ function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 function positionOnCircle(angle, thisAvatar) {
     //position it on a circle around the middle
     if (angle == null) { //first time
-        angle = random(2*Math.PI); 
+        angle = random(2 * Math.PI);
     }
-      //imagine a circle looking down on the world and do High School math
+    //imagine a circle looking down on the world and do High School math
     let distanceFromCenter = 800;
     x = distanceFromCenter * Math.sin(angle);
     z = distanceFromCenter * Math.cos(angle);
@@ -170,13 +205,16 @@ function positionOnCircle(angle, thisAvatar) {
 
 function draw() {
     //go through all the people an update their texture, animate would be another place for this
-    for(id in people){
+    for (id in people) {
         let thisPerson = people[id];
-        if (thisPerson .videoObject.elt.readyState == thisPerson .videoObject.elt.HAVE_ENOUGH_DATA) {
+        if (thisPerson.videoObject.elt.readyState == thisPerson.videoObject.elt.HAVE_ENOUGH_DATA) {
             //check that the transmission arrived okay
             //then tell three that something has changed.
             thisPerson.texture.needsUpdate = true;
         }
+    }
+    for (let i = 0; i < samplePoints.length; i++) {
+        samplePoints[i].texture.needsUpdate = true;
     }
     //this is what gets sent to other people;
     clear();

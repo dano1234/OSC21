@@ -4,7 +4,7 @@ function setup() {
   runway_canvas = createCanvas(512, 512);
 
   runway_canvas.style('display', 'none');// hide this because I want to use in three.js
-  console.log("setup runway"); 
+  console.log("setup runway");
 }
 
 function talkToRunway(query) {
@@ -17,14 +17,17 @@ function talkToRunway(query) {
 }
 
 function gotError(error) {
-  console.error(  error);
+  console.error(error);
 }
 
 function gotImage(data) {
   console.log("Got Image Data", data.result);
-  let runway_img= createImg(data.result,"image generated in runway");
-  let graphics = createGraphics(width,height);
-  graphics.image(runway_img,0,0);
-  placeImage(graphics.elt);
- // runway_img.hide();
+  let runway_img = createImg(data.result,
+    function () {
+      let graphics = createGraphics(width, height);
+      graphics.image(runway_img, 0, 0);
+      placeImage(graphics.elt);
+    });
+
+  // runway_img.hide();
 }
