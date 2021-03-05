@@ -266,7 +266,6 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-
     let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
     //let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
     bgGeometery.scale(-1, 1, 1);
@@ -276,7 +275,6 @@ function init3D() {
 
     let back = new THREE.Mesh(bgGeometery, backMaterial);
     scene.add(back);
-
 
     moveCameraWithMouse();
 
@@ -308,7 +306,6 @@ function moveCameraWithMouse() {
     window.addEventListener('resize', onWindowResize, false);
     camera3D.target = new THREE.Vector3(0, 0, 0);
 }
-
 
 
 function onDocumentMouseDown(event) {
