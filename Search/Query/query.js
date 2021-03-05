@@ -133,8 +133,15 @@ textInput.addEventListener("mousedown", function (e) {
 var slider = document.getElementById("myRange");  //get a hold of something in the DOM
 slider.addEventListener("mousedown", function (e) {
     e.stopImmediatePropagation();
-    //don't let it go to the elements under the text box
+    //don't let it go to the elements under the slider
 });
+
+document.addEventListener("keydown", function (e) {
+    if (e.key === "Space") {  //checks whether the pressed key is "Enter"
+        thisElementArray.camera = camera3D.matrix.toArray();
+    } 
+});
+
 
 textInput.addEventListener("keydown", function (e) {
     if (e.key === "Enter") {  //checks whether the pressed key is "Enter"
@@ -144,7 +151,7 @@ textInput.addEventListener("keydown", function (e) {
         } else {
             createNewText(textInput.value); //don't ghave location and key as parameters when it is local
         }
-    }
+    } 
 });
 
 function paintText(canvas,text){
@@ -186,9 +193,14 @@ function createNewText(text_msg, location,key) {
         mesh.position.z = posInWorld.z;
         //add it to firebase database
         location = { "x": mesh.position.x, "y": mesh.position.y, "z": mesh.position.z, "xrot": mesh.rotation.x, "yrot": mesh.rotation.y, "zrot": mesh.rotation.z }
+        var d = new Date();
+        var n = d.getTime();
+        var cameraData = camera3D.matrix.toArray();
         let mydata = {
             'location': location,
-            'content': text_msg
+            'content':text_msg,
+            'time': n,
+            'camera' :cameraData
         };
         //insert in the database
         let returnInfo = db.ref('group/' + group_id + '/notes/').push(mydata);
@@ -211,9 +223,14 @@ function createNewText(text_msg, location,key) {
 function updateText(text, note) {
     note.text = text;
     paintText(note.canvas, text)
+    var d = new Date();
+    var n = d.getTime();
+    var cameraData = camera3D.matrix.toArray();
     let mydata = {
         'location': note.location,
-        'content': note.text
+        'content': note.text,
+        'time': n,
+        'camera' :cameraData
     };
     db.ref('group/' + group_id + '/notes/' + note.DBid).update(mydata);
 }
@@ -237,9 +254,14 @@ function onDocumentKeyDown(e) {
         currentObject.location = { "x": currentObject.object.position.x, "y": currentObject.object.position.y, "z": currentObject.object.position.z, "xrot": currentObject.object.rotation.x, "yrot": currentObject.object.rotation.y, "zrot": currentObject.object.rotation.z }
 
         myTimer = setTimeout(function(){ 
+            var d = new Date();
+            var n = d.getTime();
+            var cameraData = camera3D.matrix.toArray();
             let mydata = {
                 'location': currentObject.location,
-                'content': currentObject.text
+                'content':currentObject.text,
+                'time': n,
+                'camera' :cameraData
             };
             console.log("sending");
             db.ref('group/' + group_id + '/notes/' + currentObject.DBid).update(mydata);
