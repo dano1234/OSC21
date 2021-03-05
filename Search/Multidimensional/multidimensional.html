@@ -1,0 +1,49 @@
+<html>
+
+<head>
+    <title>Live Media Video Data </title>
+    <link rel="shortcut icon" href="#">
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/102/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.2.0/lib/p5.js"></script>
+<script type="text/javascript" src="https://p5livemedia.itp.io/simplepeer.min.js"></script>
+<script type="text/javascript" src="https://p5livemedia.itp.io/socket.io.js"></script>
+<script type="text/javascript" src="https://p5livemedia.itp.io/p5livemedia.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@runwayml/hosted-models@latest/dist/hosted-models.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/nicolaspanel/numjs@0.15.1/dist/numjs.min.js"></script>
+
+<style>
+#startVector{
+    width: 44%;
+    float: left;
+    color: #000000;
+    font-family: Monospace;
+    font-size: 9px;
+    text-align: left;
+    z-index: 2; 
+}
+#endVector{
+    float: right;
+    width: 44%;
+    color: #000000;
+    font-family: Monospace;
+    font-size: 9px;
+    text-align: right;
+    z-index: 2; 
+}
+</style>
+<body>
+    
+<div>
+        <input type="text" value='' id="startVector">
+
+         <input type="text" value='' id="endVector">
+
+         <label for="startVector">:Start Vector</label>
+         <label for="endVector">End Vector:</label>
+        <script src="multidimensional.js"></script>
+    </div>
+</body>
+
+
+</html>

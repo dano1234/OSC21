@@ -1,57 +1,9 @@
 
 let camera3D, scene, renderer, cube;
 let dir = 0.01;
-let myCanvas, myVideo, p5CanvasTexture;
-let connections = [];
-let textures = []
 
-function setup() {
-    myCanvas = createCanvas(512, 512);
-    myCanvas.hide();
-    myVideo = createCapture(VIDEO, videoLoaded);
-    myVideo.hide()
-    myVideo.size(320, 240);
- 
-    init3D();
-}
 
-function videoLoaded(stream) {;
-    let p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
-    p5lm.on('stream', gotStream);
-}
-
-function gotStream(stream, id) {
-    creatNewVideoObject(stream);
-}
-
-function creatNewVideoObject(canvas) {  //this is for remote and local
-    var videoGeometry = new THREE.PlaneGeometry(512, 512);
-    let p5CanvasTexture = new THREE.Texture(canvas.elt);  //NOTICE THE .elt  this give the element
-    //let videoMaterial = new THREE.MeshBasicMaterial({ map:   p5CanvasTexture});
-    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1,  side: THREE.DoubleSide });
-    videoMaterial.map.minFilter = THREE.LinearFilter;  //otherwise lots of errors
-    //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
-
-    scene.add(myAvatarObj);
-    connections.push(myAvatarObj);
-    textures.push(p5CanvasTexture);
-    console.log(myAvatarObj.material.map);
-    let horiz_angle = (connections.length +1) * 2*Math.PI / 5;
-    let vert_anagle = 0;
-    let distanceFromCenter = 850;
-    x = distanceFromCenter * Math.sin(horiz_angle); //Math.sin(vert_anagle) * 
-    y = 0; //distanceFromCenter  * Math.cos(vert_anagle);
-    z = distanceFromCenter  * Math.cos(horiz_angle); //Math.sin(vert_anagle) * 
-    myAvatarObj.position.set(x,y,z);
-    myAvatarObj.lookAt(0, 0, 0);
-
-}
-
-function draw() {
-    clear();//for making background transparent
-    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
-}
+init3D();
 
 function init3D() {
     scene = new THREE.Scene();
@@ -61,16 +13,15 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // const geometry = new THREE.BoxGeometry();
-    //  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    //  cube = new THREE.Mesh(geometry, material);
-    //   scene.add(cube);
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
 
 
-    creatNewVideoObject(myCanvas);
 
-    let bgGeometery = new THREE.SphereGeometry(900, 100, 40);
-    //let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
+   let bgGeometery = new THREE.SphereGeometry(1000, 60, 40);
+   // let bgGeometery = new THREE.CylinderGeometry(725, 725, 1000, 10, 10, true)
     bgGeometery.scale(-1, 1, 1);
     // has to be power of 2 like (4096 x 2048) or(8192x4096).  i think it goes upside down because texture is not right size
     let panotexture = new THREE.TextureLoader().load("itp.jpg");
@@ -82,25 +33,22 @@ function init3D() {
 
     moveCameraWithMouse();
 
-    camera3D.position.z = 0;
+    camera3D.position.z = 5;
     animate();
 }
 
 function animate() {
-
     requestAnimationFrame(animate);
-    for (var i = 0; i < textures.length; i++) {
-        textures[i].needsUpdate = true;
+    cube.scale.x += dir;
+    cube.scale.y += dir;
+    cube.scale.z += dir;
+    if (cube.scale.x > 4 || cube.scale.x < -4) {
+        dir = -dir;
     }
-    // p5CanvasTexture.needsUpdate = true;
-    //cube.scale.x += dir;
-    // cube.scale.y += dir;
-    //cube.scale.z += dir;
-    // if (cube.scale.x > 4 || cube.scale.x < -4) {
-    //    dir = -dir;
-    // }
     renderer.render(scene, camera3D);
 }
+
+
 
 /////MOUSE STUFF
 
@@ -156,9 +104,9 @@ function computeCameraOrientation() {
     lat = Math.max(- 30, Math.min(30, lat));  //restrict movement
     let phi = THREE.Math.degToRad(90 - lat);  //restrict movement
     let theta = THREE.Math.degToRad(lon);
-    camera3D.target.x = 10000 * Math.sin(phi) * Math.cos(theta);
-    camera3D.target.y = 10000 * Math.cos(phi);
-    camera3D.target.z = 10000 * Math.sin(phi) * Math.sin(theta);
+    camera3D.target.x = 100 * Math.sin(phi) * Math.cos(theta);
+    camera3D.target.y = 100 * Math.cos(phi);
+    camera3D.target.z = 100 * Math.sin(phi) * Math.sin(theta);
     camera3D.lookAt(camera3D.target);
 }
 

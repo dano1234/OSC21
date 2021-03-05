@@ -1,21 +1,101 @@
 
 let camera3D, scene, renderer, cube;
 let dir = 0.01;
-let myCanvas, myVideo, p5CanvasTexture;
+let myCanvas, myVideo, p5CanvasTexture, poseNet;
+let nose, circleMask, angleOnCircle, myAvatarObj;
 
-function setup(){
-  myCanvas = createCanvas(512,512);
-  myCanvas.hide();
-  myVideo = createCapture(VIDEO);
-  myVideo.size(320,240);
-  myVideo.hide();
+let videoOptions, preferredCam;
 
-  init3D();
+
+function setup() {
+    myCanvas = createCanvas(512, 512);
+    circleMask = createGraphics(512, 512);
+    myCanvas.hide();
+    createPullDownForCameraSelection();
+    videoOptions = {
+        audio: false, video: {
+            width: myCanvas.width,
+            height: myCanvas.height,
+            sourceId: preferredCam
+        }
+    }
+    myVideo = createCapture(videoOptions);
+    myVideo.hide();
+
+
+    nose = { "x": myVideo.width / 2, "y": myVideo.height / 2 };
+    poseNet = ml5.poseNet(myVideo, modelReady);
+    poseNet.on("pose", gotPoses);
+
+    init3D();
 }
 
-function draw(){
-   clear();
-    image(myVideo,(myCanvas.width-myVideo.width)/2,(myCanvas.height-myVideo.height)/2);
+function modelReady() {
+    console.log("model ready");
+    progress = "loaded";
+    poseNet.singlePose(myVideo);
+}
+
+// A function that gets called every time there's an update from the model
+function gotPoses(results) {
+    //console.log(results);
+    if (!results[0]) return;
+    poses = results;
+    progress = "predicting";
+    let thisNose = results[0].pose.nose;
+    let thisWrist = results[0].pose.rightWrist;
+
+    let handRaised = false;
+    if (thisWrist.confidence > .3 && thisWrist.y < height / 2) {
+        handRaised = true;
+    }
+    // console.log(handRaised);
+    if (thisNose.confidence > .8) {
+        nose.x = thisNose.x;
+        nose.y = thisNose.y;
+
+        let xDiff = poses[0].pose.leftEye.x - poses[0].pose.rightEye.x;
+        let yDiff = poses[0].pose.leftEye.y - poses[0].pose.rightEye.y;
+        headAngle = Math.atan2(yDiff, xDiff);
+        headAngle = THREE.Math.radToDeg(headAngle);
+
+        if (headAngle > 15) {
+            if (handRaised) {
+                //move the camera
+                lon -= .5;
+                computeCameraOrientation();
+            } else {
+                //move p5sketch
+                angleOnCircle -= 0.005;
+                positionOnCircle(angleOnCircle, myAvatarObj);
+            }
+        }
+        if (headAngle < -15) {
+            if (handRaised) {
+                //move the camera
+                lon += .5;
+                computeCameraOrientation();
+            } else {
+                //move p5sketch
+                angleOnCircle += 0.005;
+                positionOnCircle(angleOnCircle, myAvatarObj);
+            }
+        }
+
+
+    }
+
+}
+
+function draw() {
+    clear(); //clear the mask
+    circleMask.ellipseMode(CENTER);
+    circleMask.clear()//clear the mask
+    circleMask.fill(0, 0, 0, 255);//set alpha of mask
+    circleMask.noStroke();
+    circleMask.ellipse(nose.x, nose.y, 150, 150)//use nose pos to draw alpha
+    myVideo.mask(circleMask);//use alpha of mask to clip the vido
+    image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
 }
 
 function init3D() {
@@ -26,18 +106,14 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-   // const geometry = new THREE.BoxGeometry();
-  //  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  //  cube = new THREE.Mesh(geometry, material);
- //   scene.add(cube);
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
     p5CanvasTexture = new THREE.Texture(myCanvas.elt);  //NOTICE THE .elt  this give the element
- //  let videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture});
-   let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
- //  let videoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-   myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
-    myAvatarObj.position.set(0,0,-500);
+    let videoMaterial = new THREE.MeshBasicMaterial({ map: p5CanvasTexture, transparent: true, opacity: 1, side: THREE.DoubleSide });
+    myAvatarObj = new THREE.Mesh(videoGeometry, videoMaterial);
+
+    angleOnCircle = Math.PI;
+    positionOnCircle(angleOnCircle, myAvatarObj);
     scene.add(myAvatarObj);
 
 
@@ -52,23 +128,25 @@ function init3D() {
 
     let back = new THREE.Mesh(bgGeometery, backMaterial);
     scene.add(back);
-    
+
     moveCameraWithMouse();
 
-    camera3D.position.z = 5;
+    camera3D.position.z = 0;
     animate();
 }
 
+function positionOnCircle(angle, mesh) {
+    //imagine a circle looking down on the world and do High School math
+    let distanceFromCenter = 850;
+    x = distanceFromCenter * Math.sin(angle);
+    z = distanceFromCenter * Math.cos(angle);
+    mesh.position.set(x, 0, z);
+    mesh.lookAt(0, 0, 0);
+}
+
 function animate() {
- 
     requestAnimationFrame(animate);
-    p5CanvasTexture.needsUpdate = true;
-    //cube.scale.x += dir;
-   // cube.scale.y += dir;
-    //cube.scale.z += dir;
-   // if (cube.scale.x > 4 || cube.scale.x < -4) {
-    //    dir = -dir;
-   // }
+    p5CanvasTexture.needsUpdate = true;  //tell renderer that P5 canvas is changing
     renderer.render(scene, camera3D);
 }
 
@@ -140,3 +218,55 @@ function onWindowResize() {
     console.log('Resized');
 }
 
+function createPullDownForCameraSelection() {
+    //manual alternative to all of this pull down stuff:
+    //type this in the console and unfold resulst to find the device id of your preferredwebcam, put in sourced id below
+    //navigator.mediaDevices.enumerateDevices()
+    preferredCam = localStorage.getItem('preferredCam')
+    if (preferredCam) {
+        videoOptions = {
+            video: {
+                width: myCanvas.width,
+                height: myCanvas.height,
+                sourceId: preferredCam
+            }
+        };
+    } else {
+        videoOptions = {
+            audio: true, video: {
+                width: myCanvas.width,
+                height: myCanvas.height
+            }
+        };
+    }
+    navigator.mediaDevices.enumerateDevices().then(function (d) {
+        var sel = createSelect();
+        sel.position(10, 10);
+        for (var i = 0; i < d.length; i++) {
+            if (d[i].kind == "videoinput") {
+                let label = d[i].label;
+                let ending = label.indexOf('(');
+                if (ending == -1) ending = label.length;
+                label = label.substring(0, ending);
+                sel.option(label, d[i].deviceId)
+            }
+            if (preferredCam) sel.selected(preferredCam);
+        }
+        sel.changed(function () {
+            let item = sel.value();
+            console.log(item);
+            localStorage.setItem('preferredCam', item);
+            videoOptions = {
+                video: {
+                    optional: [{
+                        sourceId: item
+                    }]
+                }
+            };
+            myVideo.remove();
+            myVideo = createCapture(videoOptions, VIDEO);
+            myVideo.hide();
+            console.log(videoOptions);
+        });
+    });
+}
