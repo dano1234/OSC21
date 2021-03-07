@@ -10,8 +10,6 @@ let model;
 let settlingInterval;
 let alterEgo;
 
-
-
 function setup() {
     console.log("setup");
     myCanvas = createCanvas(512, 512);
@@ -67,17 +65,37 @@ function settled() {
 }
 function talkToRunway(reason, vector, angle) {
     const path = 'http://localhost:8000/query';
-    console.log("askit");
+    console.log("askit", reason, angle);
     const data = {
         z: vector,
         truncation: 0.7
     };
+    //This is code if you spin up a model on runway's server and create a model object here
     model.query(data).then(outputs => {
         const { image } = outputs;
         // use the outputs in your project
         // console.log("Got Image Data", image);
         let runway_img = createImg(image,
             function () {  //this function gets called when it is finished being created
+                runway_img.hide();
+                if (reason == "landmark") {
+                    //change picture of landmark
+                    console.log("got landmark angle", angle);
+                    updateLandmark(landmarks[angle],runway_img);
+                } else {
+                    //change your video to resulting picture
+                    alterEgo = createGraphics(512, 512);
+                    alterEgo.image(runway_img, 0, 0, 512, 512);
+                    console.log("got alterEgo");
+                }
+            }
+        );
+    });
+    //This is the code if you are talking to your local runway
+    /*  httpPost(path, 'json', data, 
+      function(data){;
+           let runway_img = createImg(data.result,
+                function () {  //this function gets called when it is finished being created
                 runway_img.hide();
                 if (reason == "landmark") {
                     //change picture of landmark
@@ -90,23 +108,6 @@ function talkToRunway(reason, vector, angle) {
                     console.log("got alterEgo", alterEgo);
                 }
             }
-        );
-    });
-
-    /*  httpPost(path, 'json', data, 
-      function(data){;
-           let runway_img = createImg(data.result,
-            function () {  //this function gets called when it is finished being created
-                let graphics = createGraphics(512, 512);
-                graphics.image(runway_img, 0, 0, 512, 512);
-                runway_img.hide();
-                if (reason == "landmark") {
-                    createLandmarkPicture(vector, angle, graphics.elt);
-                } else {
-                    
-                    alterEgo = graphics;
-                    console.log("got alterEgo", alterEgo);
-                }
             }
         );
       }, 
@@ -116,13 +117,13 @@ function talkToRunway(reason, vector, angle) {
       */
 }
 
-
-
 function createLandmarkPicture(vector, angle) {
     let graphics = createGraphics(512, 512);
     //graphics.image(runway_img, 0, 0, 512, 512);
+    graphics.background(127);
     fill(255,0,0);
-    graphics.text("Loading",20,20);
+    graphics.textSize(32);
+    graphics.text("Loading...",graphics.width/3,graphics.height/2);
     var myTexture = new THREE.Texture(graphics.elt);
     var material = new THREE.MeshBasicMaterial({ map: myTexture, transparent: false });
     var geo = new THREE.PlaneGeometry(512, 512);
