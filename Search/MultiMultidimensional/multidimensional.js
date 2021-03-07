@@ -3,7 +3,7 @@ let camera3D, scene, renderer
 let myCanvas, myVideo;
 let people = {};  //make it an associatvie array with each person labeled by network id
 let p5lm
-let landmarks = {};
+let landmarks = [];
 
 let myRoomName = "multidimensionalRooom";
 let model;
@@ -43,22 +43,17 @@ function setup() {
     });
 
     startVector = createRandomVector();
-    createLandmarkPicture(startVector, 0) ;
     talkToRunway("landmark",  startVector, 0);
     endVector = createRandomVector();
-    createLandmarkPicture( endVector, 180) ;
     talkToRunway("landmark",  endVector, 180);
 }
 function settled() {
     console.log("settled");
-    let pos1 = landmarks[0].object.position;
-    let pos2 = landmarks[180].object.position;
-    let myPos = people["me"].object.position;
-    let distanceBetweenLandmarks = dist(pos1.x, pos1.y, pos1.z, pos2.x, pos2.y,pos2.z);
-    let distanceBetweenMeAndFirstLandmark = dist(myPos.x, myPos.y, myPos.z, pos1.x,pos1.y,pos1.z);
-    let t = distanceBetweenMeAndFirstLandmark/distanceBetweenLandmarks;
+    let distanceBetweenLandmarks = dist(landmarks[0].object.position.x, landmarks[0].object.position.y, landmarks[0].object.position.z, landmarks[1].object.position.x,landmarks[1].object.position.y,landmarks[1].object.position.z);
+    let distanceBetweenMeAndLandmark0 = dist(people["me"].object.position.x, people["me"].object.position.y, people["me"].object.position.z, landmarks[0].object.position.x,landmarks[0].object.position.y,landmarks[0].object.position.z);
+    let t = distanceBetweenMeAndLandmark0/distanceBetweenLandmarks;
     //let t = ((people["me"].angleOnCircle)/4)/Math.PI;
-
+    console.log(t);
     let v0 = nj.array(startVector);
     let v1 = nj.array(endVector);
     let currentVector =  (v0.multiply(1-t).add(v1.multiply(t))).tolist();  // createRandomVector();
@@ -78,15 +73,14 @@ function talkToRunway(reason, vector, angle) {
         // console.log("Got Image Data", image);
         let runway_img = createImg(image,
             function () {  //this function gets called when it is finished being created
+                let graphics = createGraphics(512, 512);
+                graphics.image(runway_img, 0, 0, 512, 512);
                 runway_img.hide();
                 if (reason == "landmark") {
-                    //change picture of landmark
-                    console.log("got landmark angle", angle, landmarks);
-                    updateLandmark(landmarks[angle],runway_img);
+                    createLandmarkPicture(vector, angle, graphics.elt);
                 } else {
-                    //change your video to resulting picture
-                    alterEgo = createGraphics(512, 512);
-                    alterEgo.image(runway_img, 0, 0, 512, 512);
+                    
+                    alterEgo = graphics;
                     console.log("got alterEgo", alterEgo);
                 }
             }
@@ -115,28 +109,33 @@ function talkToRunway(reason, vector, angle) {
         });
       */
 }
+/*
+var startVectorBox = document.getElementById("startVector");
+startVectorBox.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+        talkToRunway(startVectorBox.value, 1);
+    }
+});
+
+var endVectorBox = document.getElementById("endVector");
+endVectorBox.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+        talkToRunway(endVectorBox.value, 2);
+    }
+});
+*/
 
 
-
-function createLandmarkPicture(vector, angle) {
-    let graphics = createGraphics(512, 512);
-    //graphics.image(runway_img, 0, 0, 512, 512);
-    fill(255,0,0);
-    graphics.text("Loading",20,20);
-    var myTexture = new THREE.Texture(graphics.elt);
+function createLandmarkPicture(vector, angle, canvas) {
+    var myTexture = new THREE.Texture(canvas);
     var material = new THREE.MeshBasicMaterial({ map: myTexture, transparent: false });
     var geo = new THREE.PlaneGeometry(512, 512);
     var mesh = new THREE.Mesh(geo, material);
     scene.add(mesh);
-
-    positionOnCircle(THREE.Math.degToRad(angle), mesh);
+    angle = THREE.Math.degToRad(angle);
+    positionOnCircle(angle, mesh);
     myTexture.needsUpdate = true;
-    landmarks[angle] ={ "object": mesh, "texture": myTexture, "canvas": graphics, "vector": vector };
-}
-
-function updateLandmark(landmark, img){
-    landmark.canvas.image(img, 0, 0, 512, 512);
-    landmark.texture.needsUpdate = true;
+    landmarks.push({ "object": mesh, "texture": myTexture, "canvas": canvas, "vector": vector });
 }
 
 function createRandomVector() {
@@ -147,10 +146,30 @@ function createRandomVector() {
     return vector;
 }
 
+
+
+var startVectorBox = document.getElementById("startVector");
+startVectorBox.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+        talkToRunway(startVectorBox.value, 1);
+    }
+});
+
+var endVectorBox = document.getElementById("endVector");
+endVectorBox.addEventListener("keydown", function (e) {
+    if (e.key == "Enter") {  //checks whether the pressed key is "Enter"
+        talkToRunway(endVectorBox.value, 2);
+    }
+});
+
+
+
+
+
 ///move people around and tell them about 
 document.addEventListener('keydown', onDocumentKeyDown, false);
 function onDocumentKeyDown(e) {
-    alterEgo = null;
+    console.log("hey");
     clearTimeout(settlingInterval);
     let me = people["me"];
     if (e.key == "ArrowLeft" || e.key == "a") {
@@ -165,6 +184,9 @@ function onDocumentKeyDown(e) {
     } else if (keyCode == 40 || key == "s") {
 
     }
+   
+
+
     settlingInterval = setTimeout(settled, 3000);
     positionOnCircle(me.angleOnCircle, me.object); //change it locally 
     //send it to others
@@ -173,29 +195,6 @@ function onDocumentKeyDown(e) {
 
 }
 
-function draw() {
-    //go through all the people an update their texture, animate would be another place for this
-    for (id in people) {
-        let thisPerson = people[id];
-        if (thisPerson.videoObject.elt.readyState == thisPerson.videoObject.elt.HAVE_ENOUGH_DATA) {
-            //check that the transmission arrived okay
-            //then tell three that something has changed.
-            thisPerson.texture.needsUpdate = true;
-        }
-    }
-  // for (let i = 0; i < landmarks.length; i++) {
-     //   landmarks[i].texture.needsUpdate = true;
-    //}
-    //this is what gets sent to other people;
-    if (alterEgo) {
-        image(alterEgo, 0, 0, myCanvas.width, myCanvas.height);
-    } else {
-        clear();
-        image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2,myVideo.width,myVideo.height);
-      
-    }
-    people["me"].texture.needsUpdate = true;
-}
 
 
 function gotData(data, id) {
@@ -249,6 +248,28 @@ function positionOnCircle(angle, thisAvatar) {
     return angle;
 }
 
+function draw() {
+    //go through all the people an update their texture, animate would be another place for this
+    for (id in people) {
+        let thisPerson = people[id];
+        if (thisPerson.videoObject.elt.readyState == thisPerson.videoObject.elt.HAVE_ENOUGH_DATA) {
+            //check that the transmission arrived okay
+            //then tell three that something has changed.
+            thisPerson.texture.needsUpdate = true;
+        }
+    }
+    for (let i = 0; i < landmarks.length; i++) {
+        landmarks[i].texture.needsUpdate = true;
+    }
+    //this is what gets sent to other people;
+ 
+    if (alterEgo) {
+        image(alterEgo, 0, 0, myCanvas.width, myCanvas.height);
+    } else {
+        clear();
+        image(myVideo, (myCanvas.width - myVideo.width) / 2, (myCanvas.height - myVideo.height) / 2);
+    }
+}
 
 function init3D() {
     scene = new THREE.Scene();
@@ -289,6 +310,8 @@ var isUserInteracting = false;
 
 
 function moveCameraWithMouse() {
+    
+
     document.addEventListener('mousedown', onDocumentMouseDown, false);
     document.addEventListener('mousemove', onDocumentMouseMove, false);
     document.addEventListener('mouseup', onDocumentMouseUp, false);

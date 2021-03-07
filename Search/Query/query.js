@@ -4,11 +4,10 @@ let texts = [];
 let hitTestableOjects = [];
 let in_front_of_you;
 let currentObject;
-let myTimer ;
+let myTimer;
 
 let group_id = "mySillyQueryRoomName";
 let db;
-
 
 function connectToFirebase() {
     var config = {
@@ -21,28 +20,104 @@ function connectToFirebase() {
 
     db = firebase.database();
 
-    var myRef = db.ref('group/' + group_id + '/notes/');
+
+
+    var myRef = db.ref('group/' + group_id + '/notes/').orderByChild('time');
     myRef.on('child_added', (data) => {
         console.log('child_added', data.key, data.val());
         let key = data.key;
         let thing = data.val();
-        createNewText(thing.content, thing.location, key)
+        createNewText(thing.content, thing.location, key, thing.camera, thing.cameraFOV)
     });
 
     myRef.on('child_changed', (data) => {
         console.log('child_changed', data.key, data.val());
-
+        for (var i = 0; i < texts.length; i++) {
+            let thing = data.val();
+            if (texts[i].DBid == data.key) {
+                texts[i].text = thing.content;
+                texts[i].camera = thing.camera;
+                texts[i].cameraFOV = thing.cameraFOV;
+                texts[i].text.object.position.x = thing.location.x;
+                texts[i].text.object.position.y = thing.location.y;
+                texts[i].text.object.position.z = thing.location.z;
+                paintText(texts[i].canvas, thing.content)
+            }
+        }
     });
 
     myRef.on('child_removed', (data) => {
         console.log('child_removed', data.key);
+        for (var i = texts.length; i > -1; i--) {
+            if (texts[i].DBid == data.key) {
+                texts[i].splice(i, 1);
+                break;
+            }
+        }
+    });
+
+    myRef.on('child_moved', (data) => {  // order changed
+        console.log('child_moved', data);
+        texts.sort(function (a, b) {
+            return a.time > b.time;
+        });
     });
 }
 
+
+
 connectToFirebase();
 init3D();
+organizedDropDownForCloseUps() ;
 
+var slide = document.getElementById('myRange');
 
+slide.onchange = function () {
+    console.log(this.value);
+    let currentIndex = Math.floor((this.value / 100) * texts.length);
+    currentObject = texts[currentIndex];
+    console.log(texts.length, currentIndex, currentObject);
+    $("#text").val(currentObject.content);
+    camera3D.matrix.fromArray(currentObject.camera); // set the camera using saved camera settings
+    camera3D.matrix.decompose(camera3D.position, camera3D.quaternion, camera3D.scale);
+    camera3D.fov = currentObject.cameraFOV;
+    camera3D.updateProjectionMatrix();
+}
+
+function organizedDropDownForCloseUps() {
+    //MAKE A ONE TIME QUERY
+    db.ref('group/' + group_id + '/notes/').orderByChild('cameraFOV').endAt(30).once("value", function (snapshot) {
+        console.log("once query", snapshot.val());
+    //POPULATE PULL DOWN MENU WITH RESULTS
+        let closeUps = snapshot.val();
+        var dropdown = $('#closeups');
+        dropdown.empty();
+        for (key in closeUps) {
+            console.log(closeUps[key]);
+            dropdown.append(
+                $('<option>', {
+                    value: key,
+                    text: closeUps[key].content
+                }, '</option>'))
+        }
+         //GIVE PULL DOWN AN ACTION
+        dropdown.on('change', function () {
+            console.log("changed", texts);
+            for (var i = 0; i < texts.length; i++) {
+                if (texts[i].DBid == this.value) {
+                    currentObject = texts[i];
+                    $("#text").val(currentObject.content);
+                    camera3D.matrix.fromArray(currentObject.camera); // set the camera using saved camera settings
+                    camera3D.matrix.decompose(camera3D.position, camera3D.quaternion, camera3D.scale);
+                    camera3D.fov = currentObject.cameraFOV;
+                    camera3D.updateProjectionMatrix();
+                    break;
+                }
+            }
+        });
+
+    });
+}
 
 function init3D() {
     scene = new THREE.Scene();
@@ -100,12 +175,12 @@ function hitTest(x, y) {  //called from onDocumentMouseDown()
         let hitObjID = intersects[0].object.uuid; //closest object
 
         for (var i = 0; i < texts.length; i++) {
-        
+
             if (texts[i].Threeid == hitObjID) {
                 currentObject = texts[i];
-                 //and put text in input box.
+                //and put text in input box.
                 $("#text").val(texts[i].text);
-     
+
                 //do some hiliting maybe later
                 break;
             }
@@ -130,6 +205,7 @@ textInput.addEventListener("mousedown", function (e) {
 });
 
 
+
 var slider = document.getElementById("myRange");  //get a hold of something in the DOM
 slider.addEventListener("mousedown", function (e) {
     e.stopImmediatePropagation();
@@ -138,8 +214,8 @@ slider.addEventListener("mousedown", function (e) {
 
 document.addEventListener("keydown", function (e) {
     if (e.key === "Space") {  //checks whether the pressed key is "Enter"
-        thisElementArray.camera = camera3D.matrix.toArray();
-    } 
+
+    }
 });
 
 
@@ -151,13 +227,13 @@ textInput.addEventListener("keydown", function (e) {
         } else {
             createNewText(textInput.value); //don't ghave location and key as parameters when it is local
         }
-    } 
+    }
 });
 
-function paintText(canvas,text){
+function paintText(canvas, text) {
     var context = canvas.getContext("2d");
     context.fillStyle = "yellow";
-    context.fillRect(0,0,canvas.width, canvas.height);
+    context.fillRect(0, 0, canvas.width, canvas.height);
     //context.clearRect(0, 0, canvas.width, canvas.height);  //this would allow you to use "transparent" in material parameters
     var fontSize = 72; // Math.max(camera3D.fov / 2, 72);
     context.font = fontSize + "pt Arial";
@@ -167,12 +243,12 @@ function paintText(canvas,text){
 }
 
 
-function createNewText(text_msg, location,key) {
+function createNewText(text_msg, location, key, cameraData, cameraFOV) {
     console.log("Created New Text");
     var canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 512;
-    paintText(canvas,text_msg);  //do this is function so you can also do it to hilite hit test and update
+    paintText(canvas, text_msg);  //do this is function so you can also do it to hilite hit test and update
     var textTexture = new THREE.Texture(canvas);
     textTexture.needsUpdate = true;
     var material = new THREE.MeshBasicMaterial({ map: textTexture, transparent: false });
@@ -195,12 +271,14 @@ function createNewText(text_msg, location,key) {
         location = { "x": mesh.position.x, "y": mesh.position.y, "z": mesh.position.z, "xrot": mesh.rotation.x, "yrot": mesh.rotation.y, "zrot": mesh.rotation.z }
         var d = new Date();
         var n = d.getTime();
-        var cameraData = camera3D.matrix.toArray();
+        cameraData = camera3D.matrix.toArray();
+        cameraFOV = camera3D.fov;
         let mydata = {
             'location': location,
-            'content':text_msg,
+            'content': text_msg,
             'time': n,
-            'camera' :cameraData
+            'camera': cameraData,
+            'cameraFOV': cameraFOV
         };
         //insert in the database
         let returnInfo = db.ref('group/' + group_id + '/notes/').push(mydata);
@@ -214,7 +292,7 @@ function createNewText(text_msg, location,key) {
     mesh.scale.set(10, 10, 10);
     scene.add(mesh);
     //two id's one for Three and one for the database
-    texts.push({ "object": mesh, "canvas": canvas, "location": location, "texture": textTexture, "text": text_msg, "Threeid": mesh.uuid, "DBid": DBid });
+    texts.push({ "object": mesh, "camera": cameraData, "cameraFOV": cameraFOV, "canvas": canvas, "location": location, "texture": textTexture, "text": text_msg, "Threeid": mesh.uuid, "DBid": DBid });
 
     hitTestableOjects.push(mesh);
 }
@@ -226,11 +304,13 @@ function updateText(text, note) {
     var d = new Date();
     var n = d.getTime();
     var cameraData = camera3D.matrix.toArray();
+    var cameraFOV = camera3D.fov;
     let mydata = {
         'location': note.location,
         'content': note.text,
         'time': n,
-        'camera' :cameraData
+        'camera': cameraData,
+        'cameraFOV': cameraFOV
     };
     db.ref('group/' + group_id + '/notes/' + note.DBid).update(mydata);
 }
@@ -241,32 +321,32 @@ function updateText(text, note) {
 function onDocumentKeyDown(e) {
     clearTimeout(myTimer);
     if (currentObject) {
-        if (e.key == "ArrowRight"){
+        if (e.key == "ArrowRight") {
             console.log(e.key);
-            currentObject.object.position.x  =  currentObject.object.position.x  + 1;
-        }else if (e.key == "ArrowLeft"){
-            currentObject.object.position.x  =  currentObject.object.position.x  - 1;
-        }else if (e.key == "ArrowUp"){
-            currentObject.object.position.y  =  currentObject.object.position.y  - 1;
-        }else if (e.key == "ArrowDown"){
-            currentObject.object.position.y  =  currentObject.object.position.y  + 1;
+            currentObject.object.position.x = currentObject.object.position.x + 1;
+        } else if (e.key == "ArrowLeft") {
+            currentObject.object.position.x = currentObject.object.position.x - 1;
+        } else if (e.key == "ArrowUp") {
+            currentObject.object.position.y = currentObject.object.position.y - 1;
+        } else if (e.key == "ArrowDown") {
+            currentObject.object.position.y = currentObject.object.position.y + 1;
         }
         currentObject.location = { "x": currentObject.object.position.x, "y": currentObject.object.position.y, "z": currentObject.object.position.z, "xrot": currentObject.object.rotation.x, "yrot": currentObject.object.rotation.y, "zrot": currentObject.object.rotation.z }
 
-        myTimer = setTimeout(function(){ 
+        myTimer = setTimeout(function () {
             var d = new Date();
             var n = d.getTime();
             var cameraData = camera3D.matrix.toArray();
             let mydata = {
                 'location': currentObject.location,
-                'content':currentObject.text,
+                'content': currentObject.text,
                 'time': n,
-                'camera' :cameraData
+                'camera': cameraData
             };
             console.log("sending");
             db.ref('group/' + group_id + '/notes/' + currentObject.DBid).update(mydata);
-            
-         }, 3000);
+
+        }, 3000);
     }
     //console.log(event.key);
     // if (event.key == " ") {
