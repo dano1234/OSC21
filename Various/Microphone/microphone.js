@@ -18,11 +18,10 @@ function setup() {
 
     init3D();
 
-    //create the local thing
-   //creatNewVideoObject(myVideo, "me");
+
 }
 
-/*
+
 ///move people around and tell them about 
 function keyPressed() {
     let me = people["me"];
@@ -44,13 +43,15 @@ function keyPressed() {
     p5lm.send(JSON.stringify(dataToSend));
 
 }
-*/
 
 function videoLoaded(stream) {
     p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
     p5lm.on('stream', gotStream);
     p5lm.on('data', gotData);
     p5lm.on('disconnect', gotDisconnect);
+        //create the local thing
+
+    creatNewVideoObject(myVideo, "me");
 }
 
 function gotData(data, id) {
@@ -74,25 +75,15 @@ function gotStream(videoObject, id) {
 
 function creatNewVideoObject(videoObject, id) {  //this is for remote and local
 
-
     let ms = videoObject.elt.captureStream();
-    /*let audioTracks = ms.getAudioTracks();
-    console.log(audioTracks);
-
-    // Use the first audio track, add it to the canvas stream
-    if (audioTracks.length > 0) {
-        ms.addTrack(audioTracks[0]);
-    }
-    */
-
     console.log(ms);
     let audioContext = new AudioContext();
     let mediaStreamSource = audioContext.createMediaStreamSource(ms);
 
     // Create a new volume meter and connect it.
-    let meter = createAudioMeter(audioContext);
+    meter = createAudioMeter(audioContext);
     mediaStreamSource.connect(meter);
-
+    
 
     var videoGeometry = new THREE.PlaneGeometry(512, 512);
     let myTexture = new THREE.Texture(videoObject.elt);  //NOTICE THE .elt  this give the element
@@ -188,7 +179,7 @@ function draw() {
     //go through all the people an update their texture, animate would be another place for this
     for (id in people) {
         let thisPerson = people[id];
-        console.log(thisPerson.meter.volume);
+        thisPerson.object.position.y = thisPerson.meter.volume * 100;
         if (thisPerson.videoObject.elt.readyState == thisPerson.videoObject.elt.HAVE_ENOUGH_DATA) {
             //check that the transmission arrived okay
             //then tell three that something has changed.
