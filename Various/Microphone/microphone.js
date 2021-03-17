@@ -15,10 +15,7 @@ function setup() {
     myVideo.size(myCanvas.width, myCanvas.height);
     //myVideo.elt.muted = true;
     myVideo.hide()
-
     init3D();
-
-
 }
 
 
@@ -45,7 +42,7 @@ function keyPressed() {
 }
 
 function videoLoaded(stream) {
-    p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mycrazyroomname")
+    p5lm = new p5LiveMedia(this, "CAPTURE", stream, "mysoundLevelroomname")
     p5lm.on('stream', gotStream);
     p5lm.on('data', gotData);
     p5lm.on('disconnect', gotDisconnect);
